@@ -124,10 +124,10 @@ const AdminDashboard = () => {
                                     {/* Status Badge */}
                                     <div className="absolute top-3 right-3">
                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg ${course.status === 'Published'
-                                                ? 'bg-green-500 text-white'
-                                                : course.status === 'Archived'
-                                                    ? 'bg-red-500 text-white'
-                                                    : 'bg-amber-500 text-white'
+                                            ? 'bg-green-500 text-white'
+                                            : course.status === 'Archived'
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-amber-500 text-white'
                                             }`}>
                                             {course.status || 'Draft'}
                                         </span>
@@ -160,17 +160,12 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        <Link
-                                            to={`/admin/course/${course._id}`}
-                                            className="flex-1 bg-slate-900 dark:bg-slate-700 text-white py-2 rounded-lg text-xs font-bold text-center hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
-                                        >
-                                            Manage
-                                        </Link>
-                                        <button className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
-                                            <FaEdit size={12} />
-                                        </button>
-                                    </div>
+                                    <Link
+                                        to={`/admin/course/${course._id}`}
+                                        className="w-full block bg-slate-900 dark:bg-slate-700 text-white py-2 rounded-lg text-xs font-bold text-center hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+                                    >
+                                        Manage
+                                    </Link>
                                 </div>
                             </div>
                         ))}

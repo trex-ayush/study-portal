@@ -11,6 +11,7 @@ const CourseManage = () => {
     const [course, setCourse] = useState(null);
     const [newSectionTitle, setNewSectionTitle] = useState('');
     const [newSectionIsPublic, setNewSectionIsPublic] = useState(true);
+    const [expandedSections, setExpandedSections] = useState({});
 
     // Section State
     const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
@@ -145,6 +146,13 @@ const CourseManage = () => {
         }
     };
 
+    const toggleSection = (sectionId) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [sectionId]: prev[sectionId] === undefined ? false : !prev[sectionId]
+        }));
+    };
+
 
 
     if (!course) return <div className="p-8 text-center text-slate-500 font-medium animate-pulse">Loading Course...</div>;
@@ -203,12 +211,18 @@ const CourseManage = () => {
                             {course.sections && course.sections.length > 0 ? (
                                 course.sections.map((section) => (
                                     <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
-                                        <div className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center transition-colors">
-                                            <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                                        <div
+                                            className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/50"
+                                            onClick={() => toggleSection(section._id)}
+                                        >
+                                            <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2 select-none">
+                                                <div className={`transition-transform duration-200 ${expandedSections[section._id] !== false ? 'rotate-180' : ''}`}>
+                                                    <FaChevronDown className="text-slate-400 text-xs" />
+                                                </div>
                                                 <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
                                                 {section.title}
                                             </h3>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                 <button
                                                     onClick={() => handleToggleSectionVisibility(section._id, section.isPublic)}
                                                     className="p-1.5 transition-colors"
@@ -252,69 +266,71 @@ const CourseManage = () => {
                                         </div>
 
                                         {/* Lectures List */}
-                                        <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                                            {section.lectures && section.lectures.length > 0 ? (
-                                                section.lectures.map((lec) => (
-                                                    <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
-                                                                {lec.number}
-                                                            </div>
-                                                            <div>
-                                                                <a
-                                                                    href={`/course/${id}/lecture/${lec._id}`}
-                                                                    className="font-medium text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer"
-                                                                >
-                                                                    {lec.title}
-                                                                </a>
-                                                                <div className="flex items-center gap-3 mt-0.5">
-                                                                    {lec.dueDate && (
-                                                                        <span className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">
-                                                                            Due {new Date(lec.dueDate).toLocaleDateString()}
-                                                                        </span>
-                                                                    )}
-                                                                    {lec.resourceUrl && (
-                                                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
-                                                                    )}
+                                        {expandedSections[section._id] !== false && (
+                                            <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
+                                                {section.lectures && section.lectures.length > 0 ? (
+                                                    section.lectures.map((lec) => (
+                                                        <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
+                                                                    {lec.number}
+                                                                </div>
+                                                                <div>
+                                                                    <a
+                                                                        href={`/course/${id}/lecture/${lec._id}`}
+                                                                        className="font-medium text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer"
+                                                                    >
+                                                                        {lec.title}
+                                                                    </a>
+                                                                    <div className="flex items-center gap-3 mt-0.5">
+                                                                        {lec.dueDate && (
+                                                                            <span className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">
+                                                                                Due {new Date(lec.dueDate).toLocaleDateString()}
+                                                                            </span>
+                                                                        )}
+                                                                        {lec.resourceUrl && (
+                                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
+                                                                        )}
 
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
 
-                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
-                                                                className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
-                                                            >
-                                                                {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    handleEditClick(lec, section._id);
-                                                                    setIsLectureModalOpen(true);
-                                                                }}
-                                                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                title="Edit"
-                                                            >
-                                                                <FaEdit size={12} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteLecture(lec._id)}
-                                                                className="p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                title="Delete"
-                                                            >
-                                                                <FaTrash size={12} />
-                                                            </button>
+                                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button
+                                                                    onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
+                                                                    className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                                    title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
+                                                                >
+                                                                    {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        handleEditClick(lec, section._id);
+                                                                        setIsLectureModalOpen(true);
+                                                                    }}
+                                                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                                    title="Edit"
+                                                                >
+                                                                    <FaEdit size={12} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteLecture(lec._id)}
+                                                                    className="p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                                    title="Delete"
+                                                                >
+                                                                    <FaTrash size={12} />
+                                                                </button>
+                                                            </div>
                                                         </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="p-6 text-center">
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures yet.</p>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="p-6 text-center">
-                                                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures yet.</p>
-                                                </div>
-                                            )}
-                                        </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             ) : (
