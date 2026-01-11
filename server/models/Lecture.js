@@ -1,0 +1,31 @@
+const mongoose = require('mongoose');
+
+const lectureSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Please add a lecture title']
+    },
+    number: {
+        type: Number,
+        required: [true, 'Please add a lecture number']
+    },
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'Course'
+    },
+    resourceUrl: {
+        type: String,
+        required: false
+    },
+    description: {
+        type: String
+    },
+    dueDate: {
+        type: Date
+    }
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('Lecture', lectureSchema);
