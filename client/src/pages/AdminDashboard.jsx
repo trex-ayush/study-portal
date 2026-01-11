@@ -53,7 +53,7 @@ const AdminDashboard = () => {
                     </div>
                     <button
                         onClick={() => setShowCreate(!showCreate)}
-                        className="flex items-center gap-2 bg-slate-900 dark:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-bold shadow-sm hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-md text-sm font-bold shadow-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
                     >
                         {showCreate ? 'Cancel' : <><FaPlus size={12} /> New Course</>}
                     </button>

@@ -71,8 +71,9 @@ const StudentCourseDetails = () => {
         course.sections.forEach(s => totalLectures += s.lectures.length);
 
         let completed = 0;
+        const completionLabel = course.completedStatus || 'Completed';
         Object.values(progressMap).forEach(p => {
-            if (p.status === 'Completed') completed++;
+            if (p.status === completionLabel) completed++;
         });
 
         const percent = totalLectures === 0 ? 0 : Math.round((completed / totalLectures) * 100);
@@ -125,7 +126,8 @@ const StudentCourseDetails = () => {
                                 course.sections.map((section) => {
                                     // Section Progress Logic
                                     const totalSecLectures = section.lectures ? section.lectures.length : 0;
-                                    const completedSecLectures = section.lectures ? section.lectures.filter(l => progressMap[l._id]?.status === 'Completed').length : 0;
+                                    const completionLabel = course.completedStatus || 'Completed';
+                                    const completedSecLectures = section.lectures ? section.lectures.filter(l => progressMap[l._id]?.status === completionLabel).length : 0;
                                     const secPercent = totalSecLectures > 0 ? Math.round((completedSecLectures / totalSecLectures) * 100) : 0;
                                     const isExpanded = expandedSections[section._id];
 
@@ -172,9 +174,8 @@ const StudentCourseDetails = () => {
                                                             const completedAt = progress.completedAt ? new Date(progress.completedAt) : null;
                                                             const dueDate = lec.dueDate ? new Date(lec.dueDate) : null;
 
-                                                            // Check if Late: Completed AFTER Due Date
-                                                            // If completedAt > dueDate => Late
-                                                            const isLate = status === 'Completed' && completedAt && dueDate && completedAt > dueDate;
+                                                            const completionLabel = course.completedStatus || 'Completed';
+                                                            const isLate = status === completionLabel && completedAt && dueDate && completedAt > dueDate;
 
                                                             return (
                                                                 <div
@@ -184,14 +185,18 @@ const StudentCourseDetails = () => {
                                                                 >
                                                                     <div className="flex items-center gap-4">
                                                                         <div className="shrink-0">
-                                                                            {status === 'Completed' ?
-                                                                                <FaCheckCircle className="text-green-500" size={16} /> :
-                                                                                status === 'In Progress' ?
-                                                                                    <FaPlayCircle className="text-amber-500" size={16} /> :
-                                                                                    <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm transition-colors">
-                                                                                        {lec.number}
-                                                                                    </div>
-                                                                            }
+                                                                            {(status && status !== 'Not Started') ? (
+                                                                                <div style={{ color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#10b981' }}>
+                                                                                    {status === completionLabel ?
+                                                                                        <FaCheckCircle size={16} /> :
+                                                                                        <FaPlayCircle size={16} />
+                                                                                    }
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm transition-colors">
+                                                                                    {lec.number}
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                         <div>
                                                                             <span className="font-medium text-sm text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
@@ -210,12 +215,14 @@ const StudentCourseDetails = () => {
                                                                                 )}
 
                                                                                 {/* Status Chip */}
-                                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${status === 'Completed'
-                                                                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                                                                                    : status === 'In Progress'
-                                                                                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                                                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-                                                                                    }`}>
+                                                                                <span
+                                                                                    className={`text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors`}
+                                                                                    style={{
+                                                                                        backgroundColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}20`,
+                                                                                        borderColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}40`,
+                                                                                        color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'
+                                                                                    }}
+                                                                                >
                                                                                     {status}
                                                                                 </span>
                                                                             </div>

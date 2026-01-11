@@ -43,7 +43,8 @@ const StudentDashboard = () => {
                 {enrolledCourses.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {enrolledCourses.map(item => {
-                            const completedCount = item.completedLectures ? item.completedLectures.filter(l => l.status === 'Completed').length : 0;
+                            const completionLabel = item.course.completedStatus || 'Completed';
+                            const completedCount = item.completedLectures ? item.completedLectures.filter(l => l.status === completionLabel).length : 0;
 
                             const totalLectures = item.course.sections
                                 ? item.course.sections.reduce((acc, sec) => acc + (sec.lectures ? sec.lectures.length : 0), 0)

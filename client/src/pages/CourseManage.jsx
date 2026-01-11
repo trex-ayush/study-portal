@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import toast from 'react-hot-toast';
 
@@ -15,11 +15,14 @@ const CourseManage = () => {
     const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
     const [editingSectionId, setEditingSectionId] = useState(null);
 
+    // Course Settings
+    // (State removed, now on separate page)
+
     // Lecture State
     const [isLectureModalOpen, setIsLectureModalOpen] = useState(false);
     const [activeSectionId, setActiveSectionId] = useState(null); // For adding new lecture
     const [editingLectureId, setEditingLectureId] = useState(null); // For editing existing lecture
-    const [newLecture, setNewLecture] = useState({ title: '', number: '', resourceUrl: '', description: '', dueDate: '' });
+    const [newLecture, setNewLecture] = useState({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
 
     // Students State
     const [enrolledStudents, setEnrolledStudents] = useState([]);
@@ -83,7 +86,7 @@ const CourseManage = () => {
                 await api.post(`/courses/${id}/sections/${activeSectionId}/lectures`, newLecture);
             }
 
-            setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '' });
+            setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
             setActiveSectionId(null);
             setEditingLectureId(null);
             fetchCourse();
@@ -93,13 +96,16 @@ const CourseManage = () => {
         }
     };
 
+    // (handleUpdateCourse removed)
+
     const handleEditClick = (lec, sectionId) => {
         setNewLecture({
             title: lec.title,
             number: lec.number,
             resourceUrl: lec.resourceUrl,
             description: lec.description,
-            dueDate: lec.dueDate ? lec.dueDate.split('T')[0] : ''
+            dueDate: lec.dueDate ? lec.dueDate.split('T')[0] : '',
+            status: lec.status || 'Pending'
         });
         setEditingLectureId(lec._id);
         setActiveSectionId(sectionId); // Open the form in the relevant section
@@ -134,7 +140,7 @@ const CourseManage = () => {
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-gray-100 pb-12 transition-colors duration-300">
 
             {/* Header */}
-            <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-10 transition-colors duration-300">
+            <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-16 z-10 transition-colors duration-300">
                 <div className="container mx-auto px-4 h-20 flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900 dark:text-white">{course.title}</h1>
@@ -146,6 +152,12 @@ const CourseManage = () => {
                             className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors"
                         >
                             <FaEye className="text-slate-400 dark:text-slate-500" /> Student View
+                        </button>
+                        <button
+                            onClick={() => navigate(`/admin/course/${id}/settings`)}
+                            className="flex items-center gap-2 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+                        >
+                            <FaCog /> Settings
                         </button>
                     </div>
                 </div>
@@ -206,7 +218,7 @@ const CourseManage = () => {
                                                     onClick={() => {
                                                         setActiveSectionId(section._id);
                                                         setEditingLectureId(null);
-                                                        setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '' });
+                                                        setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
                                                         setIsLectureModalOpen(true);
                                                     }}
                                                     className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm"
@@ -241,6 +253,12 @@ const CourseManage = () => {
                                                                     {lec.resourceUrl && (
                                                                         <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
                                                                     )}
+                                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter ${lec.status === 'Live' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
+                                                                        lec.status === 'Available' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
+                                                                            'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                                                        }`}>
+                                                                        {lec.status || 'Pending'}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -435,6 +453,21 @@ const CourseManage = () => {
                     </div>
 
                     <div>
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Status (Managed by Admin)</label>
+                        <select
+                            className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-white"
+                            value={newLecture.status}
+                            onChange={(e) => setNewLecture({ ...newLecture, status: e.target.value })}
+                        >
+                            <option value="Pending">Pending</option>
+                            {course?.lectureStatuses?.map(s => (
+                                <option key={s.label} value={s.label}>{s.label}</option>
+                            ))}
+                            <option value="Hidden">Hidden</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Description</label>
                         <textarea
                             className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-white min-h-[100px]"
@@ -450,6 +483,7 @@ const CourseManage = () => {
                     </div>
                 </form>
             </Modal>
+
         </div >
     );
 };

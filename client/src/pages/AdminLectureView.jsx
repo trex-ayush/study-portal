@@ -30,10 +30,10 @@ const AdminLectureView = () => {
 
     const fetchCourseAndProgress = async () => {
         try {
-            const courseRes = await api.get(`/courses/${courseId}`);
+            const courseRes = await api.get(`/ courses / ${courseId} `);
             setCourse(courseRes.data);
 
-            const progRes = await api.get(`/courses/${courseId}/progresses`);
+            const progRes = await api.get(`/ courses / ${courseId}/progresses`);
             setProgresses(progRes.data);
         } catch (error) {
             console.error(error);
@@ -63,7 +63,8 @@ const AdminLectureView = () => {
                 number: res.data.number,
                 resourceUrl: res.data.resourceUrl,
                 description: res.data.description,
-                dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : ''
+                dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : '',
+                status: res.data.status || 'Pending'
             });
         } catch (error) {
             console.error(error);
@@ -122,7 +123,7 @@ const AdminLectureView = () => {
     return (
         <div className="min-h-screen bg-gray-50 text-slate-900 pb-12">
             {/* Header / Nav */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-10 w-full">
+            <div className="bg-white border-b border-gray-200 sticky top-16 z-10 w-full">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <button
                         onClick={() => navigate(`/admin/course/${courseId}`)}
@@ -274,6 +275,20 @@ const AdminLectureView = () => {
                                                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                                             />
                                         </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-700">Status (Managed by Admin)</label>
+                                            <select
+                                                className="w-full h-9 rounded-md border border-gray-300 px-3 text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-white"
+                                                value={formData.status}
+                                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            >
+                                                <option value="Pending">Pending</option>
+                                                {course?.lectureStatuses?.map(s => (
+                                                    <option key={s.label} value={s.label}>{s.label}</option>
+                                                ))}
+                                                <option value="Hidden">Hidden</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-md text-sm font-medium hover:bg-slate-800">
                                         Save Changes
@@ -283,7 +298,19 @@ const AdminLectureView = () => {
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div>
-                                            <h1 className="text-xl font-bold text-slate-900">{lecture.title}</h1>
+                                            <div className="flex items-center gap-3">
+                                                <h1 className="text-xl font-bold text-slate-900">{lecture.title}</h1>
+                                                <span
+                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border`}
+                                                    style={{
+                                                        backgroundColor: `${course?.lectureStatuses?.find(s => s.label === lecture.status)?.color || '#94a3b8'}20`,
+                                                        borderColor: `${course?.lectureStatuses?.find(s => s.label === lecture.status)?.color || '#94a3b8'}40`,
+                                                        color: course?.lectureStatuses?.find(s => s.label === lecture.status)?.color || '#64748b'
+                                                    }}
+                                                >
+                                                    {lecture.status || 'Pending'}
+                                                </span>
+                                            </div>
                                             <p className="text-sm text-slate-500 mt-1">Lecture {lecture.number}</p>
                                         </div>
                                         {lecture.dueDate && (
@@ -364,8 +391,8 @@ const AdminLectureView = () => {
                             </div>
 
                             {/* Tabs */}
-                            <div className="flex border-b border-gray-200">
-                                {['All', 'Not Started', 'In Progress', 'Completed'].map(tab => (
+                            <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar">
+                                {['All', ...(course?.lectureStatuses?.map(s => s.label) || ['Not Started', 'In Progress', 'Completed'])].map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => { setActiveTab(tab); setProgressPage(1); }}
@@ -383,25 +410,30 @@ const AdminLectureView = () => {
                             {/* List */}
                             <div className="divide-y divide-gray-100 min-h-[300px]">
                                 {paginatedStudents.length > 0 ? (
-                                    paginatedStudents.map((stat, idx) => (
-                                        <div key={idx} className="p-3 hover:bg-gray-50 transition-colors flex justify-between items-center group">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 uppercase border border-slate-200">
-                                                    {stat.student?.name?.charAt(0) || '?'}
+                                    paginatedStudents.map((stat, idx) => {
+                                        const statusInfo = course?.lectureStatuses?.find(s => s.label === stat.status);
+                                        return (
+                                            <div key={idx} className="p-3 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 uppercase border border-slate-200">
+                                                        {stat.student?.name?.charAt(0) || '?'}
+                                                    </div>
+                                                    <div className="overflow-hidden">
+                                                        <p className="text-xs font-semibold text-slate-900 truncate w-32">{stat.student?.name}</p>
+                                                        <p className="text-[10px] text-slate-400 truncate w-32">{stat.student?.email}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="overflow-hidden">
-                                                    <p className="text-xs font-semibold text-slate-900 truncate w-32">{stat.student?.name}</p>
-                                                    <p className="text-[10px] text-slate-400 truncate w-32">{stat.student?.email}</p>
-                                                </div>
-                                            </div>
 
-                                            <div className="shrink-0">
-                                                {stat.status === 'Completed' && <FaCheckCircle className="text-green-500 text-sm" title="Completed" />}
-                                                {stat.status === 'In Progress' && <FaPlayCircle className="text-amber-500 text-sm" title="In Progress" />}
-                                                {stat.status === 'Not Started' && <FaCircle className="text-gray-300 text-xs" title="Not Started" />}
+                                                <div className="shrink-0">
+                                                    <FaCircle
+                                                        className="text-sm"
+                                                        style={{ color: statusInfo?.color || '#cbd5e1' }}
+                                                        title={stat.status}
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
                                     <div className="p-8 text-center">
                                         <p className="text-xs text-slate-400 italic">No students found.</p>

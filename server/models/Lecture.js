@@ -23,6 +23,10 @@ const lectureSchema = new mongoose.Schema({
     },
     dueDate: {
         type: Date
+    },
+    status: {
+        type: String,
+        default: 'Pending'
     }
 }, {
     timestamps: true

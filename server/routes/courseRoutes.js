@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
     createCourse,
+    updateCourse,
     getCourses,
     getCourse,
     addSection,
@@ -36,6 +37,7 @@ router.delete('/lectures/:id', protect, admin, deleteLecture);
 
 // Admin routes
 router.post('/', protect, admin, createCourse);
+router.put('/:id', protect, admin, updateCourse);
 router.post('/:id/sections', protect, admin, addSection);
 router.put('/:id/sections/:sectionId', protect, admin, updateSection);
 router.delete('/:id/sections/:sectionId', protect, admin, deleteSection);

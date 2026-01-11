@@ -20,10 +20,38 @@ const createCourse = asyncHandler(async (req, res) => {
         user: req.user.id,
         title,
         description,
-        sections: []
+        sections: [],
+        lectureStatuses: [
+            { label: 'Not Started', color: '#64748b' },
+            { label: 'In Progress', color: '#f59e0b' },
+            { label: 'Completed', color: '#10b981' }
+        ],
+        completedStatus: 'Completed'
     });
 
     res.status(201).json(course);
+});
+
+// @desc    Update course
+// @route   PUT /api/courses/:id
+// @access  Private/Admin
+const updateCourse = asyncHandler(async (req, res) => {
+    const { title, description, status, lectureStatuses } = req.body;
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    course.title = title || course.title;
+    course.description = description || course.description;
+    course.status = status || course.status;
+    course.lectureStatuses = lectureStatuses !== undefined ? lectureStatuses : course.lectureStatuses;
+    course.completedStatus = req.body.completedStatus || course.completedStatus;
+
+    await course.save();
+    res.status(200).json(course);
 });
 
 // @desc    Get all courses
@@ -47,6 +75,14 @@ const getCourse = asyncHandler(async (req, res) => {
     if (!course) {
         res.status(404);
         throw new Error('Course not found');
+    }
+
+    if (!course.lectureStatuses || course.lectureStatuses.length === 0) {
+        course.lectureStatuses = [
+            { label: 'Not Started', color: '#64748b' },
+            { label: 'In Progress', color: '#f59e0b' },
+            { label: 'Completed', color: '#10b981' }
+        ];
     }
 
     res.status(200).json(course);
@@ -149,10 +185,9 @@ const addLectureToSection = asyncHandler(async (req, res) => {
         title,
         number,
         resourceUrl,
-        number,
-        resourceUrl,
         description,
-        dueDate
+        dueDate,
+        status: req.body.status || 'Pending'
     });
 
     // Add to section
@@ -178,6 +213,7 @@ const updateLecture = asyncHandler(async (req, res) => {
     lecture.resourceUrl = resourceUrl || lecture.resourceUrl;
     lecture.description = description || lecture.description;
     lecture.dueDate = dueDate || lecture.dueDate;
+    lecture.status = req.body.status || lecture.status;
 
     await lecture.save();
     res.status(200).json(lecture);
@@ -336,11 +372,14 @@ const updateLectureProgress = asyncHandler(async (req, res) => {
 
     // Log Activity if status changed or notes updated
     if (status) {
+        const course = await Course.findById(targetCourseId);
+        const completionLabel = course?.completedStatus || 'Completed';
+
         await Activity.create({
             student: req.user.id,
             course: targetCourseId,
             lecture: lectureId,
-            action: status === 'Completed' ? 'Completed' : 'In Progress',
+            action: status === completionLabel ? 'Completed' : 'In Progress',
             details: `Updated status to ${status} for ${lectureTitle}`
         });
     }
@@ -428,6 +467,7 @@ const getUserStats = asyncHandler(async (req, res) => {
 
 module.exports = {
     createCourse,
+    updateCourse,
     getCourses,
     getCourse,
     getCourse,
