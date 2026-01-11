@@ -382,43 +382,80 @@ const updateLectureProgress = asyncHandler(async (req, res) => {
         (item) => item.lecture.toString() === lectureId
     );
 
+    let previousStatus = 'Not Started';
+    let previousNotes = '';
+
     if (lectureIndex > -1) {
+        previousStatus = progress.completedLectures[lectureIndex].status;
+        previousNotes = progress.completedLectures[lectureIndex].notes || '';
+
         progress.completedLectures[lectureIndex].status = status || progress.completedLectures[lectureIndex].status;
         progress.completedLectures[lectureIndex].notes = notes !== undefined ? notes : progress.completedLectures[lectureIndex].notes;
         progress.completedLectures[lectureIndex].completedAt = Date.now();
     } else {
         progress.completedLectures.push({
             lecture: lectureId,
-            status,
-            notes,
+            status: status || 'Pending',
+            notes: notes || '',
             completedAt: Date.now()
         });
     }
 
     await progress.save();
 
-    // Log Activity if status changed or notes updated
-    if (status) {
+    // Prepare Activity Log Context for Middleware
+    if (status && status !== previousStatus) {
         const course = await Course.findById(targetCourseId);
         const completionLabel = course?.completedStatus || 'Completed';
 
-        await Activity.create({
-            student: req.user.id,
+        let action = 'In Progress';
+        if (status === completionLabel) action = 'Completed';
+        else if (previousStatus === 'Not Started' && status !== 'Not Started') action = 'Started';
+
+        // We can pass multiple activities? Middleware only handles one per request usually.
+        // But here we might have Note AND Status update.
+        // Option: Send array or handle primary?
+        // Let's stick to valid single action rule or direct create if complex?
+        // Actually, preventing middleware from logging generic if we do explicit?
+        // User said "not to add everywhere".
+        // But middleware supports override.
+
+        // Let's use res.locals.activity for the PRIMARY action.
+        res.locals.activity = {
             course: targetCourseId,
-            lecture: lectureId,
-            action: status === completionLabel ? 'Completed' : 'In Progress',
+            action: action,
             details: `Updated status to ${status} for ${lectureTitle}`
-        });
+        };
+
+        // If we also have notes, we might lose one log?
+        // If BOTH happen, we need 2 logs.
+        // Middleware handles 1.
+        // Exception: For multi-log events, we might still need manual create?
+        // OR we make middleware handle array.
     }
 
-    if (notes !== undefined) {
-        await Activity.create({
-            student: req.user.id,
-            course: targetCourseId,
-            lecture: lectureId,
-            action: 'Note Updated',
-            details: `Updated notes for ${lectureTitle}: "${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}"`
-        });
+    if (notes !== undefined && notes !== previousNotes) {
+        // If we already set activity (Status Update), we adding a second one?
+        if (res.locals.activity) {
+            // We have a prior activity. We should log the note separately directly?
+            // This is the edge case.
+            // Let's manually create the Note log to avoid complexity in middleware for now,
+            // OR define res.locals.activities = []
+            await Activity.create({
+                user: req.user.id,
+                course: targetCourseId,
+                lecture: lectureId,
+                action: 'Note Updated',
+                method: req.method,
+                details: `Updated notes for ${lectureTitle}: "${notes}"`
+            });
+        } else {
+            res.locals.activity = {
+                course: targetCourseId,
+                action: 'Note Updated',
+                details: `Updated notes for ${lectureTitle}: "${notes}"`
+            };
+        }
     }
 
     res.status(200).json(progress);
@@ -431,14 +468,54 @@ const addComment = asyncHandler(async (req, res) => {
     const lectureId = req.params.id;
     const { content, courseId } = req.body;
 
-    // Use Activity to store comments
+    // Use middleware for logging -> automatic if we set nothing?
+    // Middleware detects '/comments' in URL and sets 'Comment' action.
+    // We just need to ensure req.body has info. 
+    // It does.
+    // So we can Remove explicit Activity.create! 
+    // BUT we need to return the activity? 
+    // The controller returns `res.status(201).json(activity)`.
+    // If we rely on middleware, we don't have the activity object yet (it's created on finish).
+    // Frontend expects current comment to append to list?
+    // CourseView.jsx: `setComments(res.data)`. NO!
+    // `handleAddComment`: `fetchComments` called after success.
+    // So frontend refreshes list. We don't need to return the specific activity object!
+    // We can return simple success message or just status.
+
+    // However, if we want to return it immediately, we must create it immediately.
+    // Middleware creates it AFTER response.
+    // Browser receives response -> calls Log.
+    // Then browser calls `fetchComments`.
+    // Race condition?
+    // DB write might be slower than network?
+    // Usually DB write in middleware is async. Response finished.
+    // Browser gets 201. Requests GET /comments.
+    // If middleware hasn't finished writing, GET returns old list.
+
+    // CRITICAL: For comments, manual creation is better for consistency?
+    // OR await the activity creation?
+    // Use `res.locals.activity`... middleware awaits it? 
+    // Middleware is separate.
+
+    // User restriction: "check if it is not GET request then add in activity".
+    // "track this helps us to track activity in 1 file".
+
+    // I will use Manual Create for Comment to ensure it exists before returning (to avoid race condition),
+    // AND set `res.locals.activity.skip = true` to prevent middleware from double logging.
+
     const activity = await Activity.create({
-        student: req.user.id,
+        user: req.user.id,
+        // student: req.user.id, // Optional: Save both for double safety locally during migration? No, let's stick to user.
         course: courseId,
         lecture: lectureId,
         action: 'Comment',
+        method: req.method,
+        url: req.originalUrl,
+        data: req.body,
         details: content
     });
+
+    res.locals.activity = { skip: true }; // Tell middleware we handled it
 
     res.status(201).json(activity);
 });
@@ -447,13 +524,20 @@ const addComment = asyncHandler(async (req, res) => {
 // @route   GET /api/courses/lectures/:id/comments
 // @access  Private
 const getLectureComments = asyncHandler(async (req, res) => {
+    const { id } = req.params; // Lecture ID
+
+    // Fetch activities for this lecture that are comments
+    // Populate 'user' (new field) OR 'student' (old field) to support both if needed,
+    // but since we migrated, we use 'user'.
     const comments = await Activity.find({
-        lecture: req.params.id,
+        lecture: id,
         action: 'Comment'
     })
-        .populate('student', 'name email')
-        .sort({ createdAt: -1 }); // Newest first
-    res.status(200).json(comments);
+        .populate('user', 'name') // Changed from student to user
+        .populate('student', 'name') // Fallback if old valid
+        .sort({ createdAt: -1 });
+
+    res.json(comments);
 });
 
 // @desc    Get student activity for a course

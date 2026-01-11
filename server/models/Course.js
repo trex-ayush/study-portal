@@ -51,6 +51,7 @@ const courseSchema = new mongoose.Schema({
 // Virtual for backward compatibility or flat list if needed, 
 // but primarily we use sections now.
 courseSchema.virtual('totalLectures').get(function () {
+    if (!this.sections) return 0;
     return this.sections.reduce((acc, sec) => acc + sec.lectures.length, 0);
 });
 

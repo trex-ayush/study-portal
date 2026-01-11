@@ -494,12 +494,12 @@ const CourseView = () => {
                                                     {comments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((comment) => (
                                                         <div key={comment._id} className="flex gap-4 group">
                                                             <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 uppercase">
-                                                                {comment.student?.name?.charAt(0) || '?'}
+                                                                {(comment.user?.name || comment.student?.name || '?').charAt(0)}
                                                             </div>
                                                             <div className="flex-1 space-y-1">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                                                                        {comment.student?._id === user?._id ? 'You' : comment.student?.name || 'Unknown'}
+                                                                        {(comment.user?._id || comment.student?._id) === user?._id ? 'You' : (comment.user?.name || comment.student?.name || 'Unknown')}
                                                                     </span>
                                                                     <span className="text-xs text-slate-400 dark:text-slate-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
                                                                 </div>
