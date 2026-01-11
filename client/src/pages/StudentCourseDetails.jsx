@@ -21,10 +21,10 @@ const StudentCourseDetails = () => {
     // Set Document Title
     useEffect(() => {
         if (course) {
-            document.title = `StudyTracker | ${course.title}`;
+            document.title = `Skill Path | ${course.title}`;
         }
         return () => {
-            document.title = 'StudyTracker';
+            document.title = 'Skill Path';
         };
     }, [course]);
 
