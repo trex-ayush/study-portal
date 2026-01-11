@@ -159,6 +159,7 @@ const GlobalActivity = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                                     {activities.map((log) => {
+                                        // Render activity row
                                         const user = log.user || log.student;
                                         return (
                                             <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -178,8 +179,6 @@ const GlobalActivity = () => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                );
-                                    })}
                                                 <td className="px-6 py-4 whitespace-nowrap align-top">
                                                     <div className="flex items-center gap-2">
                                                         {getActionIcon(log.action)}
@@ -228,7 +227,8 @@ const GlobalActivity = () => {
                                                     {new Date(log.createdAt).toLocaleString()}
                                                 </td>
                                             </tr>
-                                        ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
