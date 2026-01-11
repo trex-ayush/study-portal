@@ -206,12 +206,12 @@ const CourseView = () => {
         }
         try {
             const existingNotes = progressMap[selectedLecture._id]?.notes || '';
-            const payload = { courseId: id, status, notes: existingNotes };
+            const payload = { courseId: id, status: newStatus, notes: existingNotes };
             await api.put(`/courses/lectures/${selectedLecture._id}/progress`, payload);
 
             setProgressMap(prev => ({
                 ...prev,
-                [selectedLecture._id]: { status, notes: existingNotes }
+                [selectedLecture._id]: { status: newStatus, notes: existingNotes }
             }));
             toast.success('Progress saved!');
         } catch (err) {
