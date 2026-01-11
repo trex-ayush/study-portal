@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog, FaUsers } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog, FaUsers } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import toast from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ const CourseManage = () => {
     const navigate = useNavigate();
     const [course, setCourse] = useState(null);
     const [newSectionTitle, setNewSectionTitle] = useState('');
+    const [newSectionIsPublic, setNewSectionIsPublic] = useState(true);
 
     // Section State
     const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
@@ -22,7 +23,7 @@ const CourseManage = () => {
     const [isLectureModalOpen, setIsLectureModalOpen] = useState(false);
     const [activeSectionId, setActiveSectionId] = useState(null); // For adding new lecture
     const [editingLectureId, setEditingLectureId] = useState(null); // For editing existing lecture
-    const [newLecture, setNewLecture] = useState({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
+    const [newLecture, setNewLecture] = useState({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
 
     // Students State
     const [enrolledStudents, setEnrolledStudents] = useState([]);
@@ -49,12 +50,13 @@ const CourseManage = () => {
         try {
             if (editingSectionId) {
                 // Update
-                await api.put(`/courses/${id}/sections/${editingSectionId}`, { title: newSectionTitle });
+                await api.put(`/courses/${id}/sections/${editingSectionId}`, { title: newSectionTitle, isPublic: newSectionIsPublic });
             } else {
                 // Create
-                await api.post(`/courses/${id}/sections`, { title: newSectionTitle });
+                await api.post(`/courses/${id}/sections`, { title: newSectionTitle, isPublic: newSectionIsPublic });
             }
             setNewSectionTitle('');
+            setNewSectionIsPublic(true);
             setEditingSectionId(null);
             fetchCourse();
             toast.success(editingSectionId ? 'Section updated!' : 'Section added!');
@@ -86,7 +88,7 @@ const CourseManage = () => {
                 await api.post(`/courses/${id}/sections/${activeSectionId}/lectures`, newLecture);
             }
 
-            setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
+            setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
             setActiveSectionId(null);
             setEditingLectureId(null);
             fetchCourse();
@@ -105,7 +107,8 @@ const CourseManage = () => {
             resourceUrl: lec.resourceUrl,
             description: lec.description,
             dueDate: lec.dueDate ? lec.dueDate.split('T')[0] : '',
-            status: lec.status || 'Pending'
+            status: lec.status || 'Pending',
+            isPublic: lec.isPublic
         });
         setEditingLectureId(lec._id);
         setActiveSectionId(sectionId); // Open the form in the relevant section
@@ -119,6 +122,26 @@ const CourseManage = () => {
             toast.success('Lecture deleted');
         } catch (error) {
             toast.error('Error deleting lecture');
+        }
+    };
+
+    const handleToggleSectionVisibility = async (sectionId, currentStatus) => {
+        try {
+            await api.put(`/courses/${id}/sections/${sectionId}`, { isPublic: !currentStatus });
+            fetchCourse();
+            toast.success(currentStatus ? 'Section hidden' : 'Section is now Public');
+        } catch (error) {
+            toast.error('Error updating visibility');
+        }
+    };
+
+    const handleToggleLectureVisibility = async (lectureId, currentStatus) => {
+        try {
+            await api.put(`/courses/lectures/${lectureId}`, { isPublic: !currentStatus });
+            fetchCourse();
+            toast.success(currentStatus ? 'Lecture hidden' : 'Lecture is now Public');
+        } catch (error) {
+            toast.error('Error updating visibility');
         }
     };
 
@@ -166,6 +189,7 @@ const CourseManage = () => {
                                 onClick={() => {
                                     setEditingSectionId(null);
                                     setNewSectionTitle('');
+                                    setNewSectionIsPublic(true);
                                     setIsSectionModalOpen(true);
                                 }}
                                 className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
@@ -186,9 +210,17 @@ const CourseManage = () => {
                                             </h3>
                                             <div className="flex items-center gap-2">
                                                 <button
+                                                    onClick={() => handleToggleSectionVisibility(section._id, section.isPublic)}
+                                                    className="p-1.5 transition-colors"
+                                                    title={section.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
+                                                >
+                                                    {section.isPublic ? <FaEye className="text-green-500" size={14} /> : <FaEyeSlash className="text-slate-400" size={14} />}
+                                                </button>
+                                                <button
                                                     onClick={() => {
                                                         setEditingSectionId(section._id);
                                                         setNewSectionTitle(section.title);
+                                                        setNewSectionIsPublic(section.isPublic);
                                                         setIsSectionModalOpen(true);
                                                     }}
                                                     className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
@@ -207,8 +239,9 @@ const CourseManage = () => {
                                                 <button
                                                     onClick={() => {
                                                         setActiveSectionId(section._id);
+                                                        setActiveSectionId(section._id);
                                                         setEditingLectureId(null);
-                                                        setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending' });
+                                                        setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
                                                         setIsLectureModalOpen(true);
                                                     }}
                                                     className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm"
@@ -249,6 +282,13 @@ const CourseManage = () => {
                                                         </div>
 
                                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
+                                                                className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                                title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
+                                                            >
+                                                                {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
+                                                            </button>
                                                             <button
                                                                 onClick={() => {
                                                                     handleEditClick(lec, section._id);
@@ -321,6 +361,16 @@ const CourseManage = () => {
                     handleSaveSection(e);
                     setIsSectionModalOpen(false);
                 }} className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3 mb-2">
+                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Visible to Students</label>
+                        <button
+                            type="button"
+                            onClick={() => setNewSectionIsPublic(!newSectionIsPublic)}
+                            className={`w-9 h-5 rounded-full flex items-center transition-colors px-1 ${newSectionIsPublic ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform ${newSectionIsPublic ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                    </div>
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Section Title</label>
                         <input
@@ -350,6 +400,17 @@ const CourseManage = () => {
                     handleSaveLecture(e);
                     setIsLectureModalOpen(false);
                 }} className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3 mb-2">
+                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Visible to Students</label>
+                        <button
+                            type="button"
+                            onClick={() => setNewLecture({ ...newLecture, isPublic: !newLecture.isPublic })}
+                            className={`w-9 h-5 rounded-full flex items-center transition-colors px-1 ${newLecture.isPublic ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform ${newLecture.isPublic ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                    </div>
+
                     <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-3">
                             <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Number</label>

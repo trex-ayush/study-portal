@@ -36,6 +36,7 @@ const courseSchema = new mongoose.Schema({
     },
     sections: [{
         title: { type: String, required: true },
+        isPublic: { type: Boolean, default: false },
         lectures: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Lecture'

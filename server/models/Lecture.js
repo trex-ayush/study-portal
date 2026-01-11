@@ -27,6 +27,10 @@ const lectureSchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'Pending'
+    },
+    isPublic: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true
