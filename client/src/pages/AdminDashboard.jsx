@@ -120,6 +120,18 @@ const AdminDashboard = () => {
                                 >
                                     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
                                     <FaBook className="text-white/20 text-5xl transform group-hover:scale-110 transition-transform duration-500" />
+
+                                    {/* Status Badge */}
+                                    <div className="absolute top-3 right-3">
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg ${course.status === 'Published'
+                                                ? 'bg-green-500 text-white'
+                                                : course.status === 'Archived'
+                                                    ? 'bg-red-500 text-white'
+                                                    : 'bg-amber-500 text-white'
+                                            }`}>
+                                            {course.status || 'Draft'}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="p-5 flex-1 flex flex-col">
