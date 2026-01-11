@@ -1,4 +1,5 @@
 const Activity = require('../models/Activity');
+const User = require('../models/User'); // Corrected path
 
 // @desc    Get all activities (admin only)
 // @route   GET /api/activities
@@ -8,15 +9,77 @@ const getGlobalActivities = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
 
-        const activities = await Activity.find()
+        // Build query
+        const query = {};
+
+        // 1. Action Filter
+        if (req.query.action && req.query.action !== 'All') {
+            query.action = req.query.action;
+        }
+
+        // 2. User Filter (Search by name or email)
+        if (req.query.user) {
+            const userRegex = new RegExp(req.query.user, 'i');
+            const users = await User.find({
+                $or: [{ name: userRegex }, { email: userRegex }]
+            }).select('_id');
+            const userIds = users.map(u => u._id);
+
+            // If we found users matching the name, look for activities by those users
+            // If no users found, we force an empty result (using a dummy ID) or just empty array logic
+            if (userIds.length > 0) {
+                query.$or = [
+                    { user: { $in: userIds } },
+                    { student: { $in: userIds } } // Support legacy field
+                ];
+            } else {
+                // Force empty result if user name not found
+                return res.status(200).json({ activities: [], page, pages: 0, total: 0 });
+            }
+        }
+
+        // 3. General Search (Action or Details)
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, 'i');
+            // If we already have a user query, we must use $and.
+            // But simpler is to add logic to the top-level query object.
+            // Let's assume general search also searches details.
+
+            const searchCondition = {
+                $or: [
+                    { action: searchRegex },
+                    { details: searchRegex },
+                    { url: searchRegex },
+                    { method: searchRegex }
+                ]
+            };
+
+            // If we already added conditions, we mix them.
+            // If 'user' filter was applied, it is in `query.$or` or `query.user`.
+            // Mongoose query merging can be tricky if we overwrite $or.
+
+            if (query.$or) {
+                // If user filter exists ($or), we need to AND it with search.
+                query.$and = [
+                    { $or: query.$or }, // Existing user condition
+                    searchCondition // New search condition
+                ];
+                delete query.$or; // Remove the top-level $or
+            } else {
+                query.$or = searchCondition.$or;
+            }
+        }
+
+        const activities = await Activity.find(query)
             .populate('user', 'name email role')
+            .populate('student', 'name email role') // Fallback populate
             .populate('course', 'title')
             .populate('lecture', 'title number')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
 
-        const total = await Activity.countDocuments();
+        const total = await Activity.countDocuments(query);
 
         res.status(200).json({
             activities,
