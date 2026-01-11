@@ -178,8 +178,6 @@ const GlobalActivity = () => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                );
-                                    })}
                                                 <td className="px-6 py-4 whitespace-nowrap align-top">
                                                     <div className="flex items-center gap-2">
                                                         {getActionIcon(log.action)}
@@ -228,7 +226,8 @@ const GlobalActivity = () => {
                                                     {new Date(log.createdAt).toLocaleString()}
                                                 </td>
                                             </tr>
-                                        ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
