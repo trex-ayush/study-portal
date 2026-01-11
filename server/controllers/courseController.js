@@ -453,8 +453,8 @@ const getCourseProgresses = asyncHandler(async (req, res) => {
 // @route   GET /api/courses/my/stats
 // @access  Private
 const getUserStats = asyncHandler(async (req, res) => {
+    // 1. Total Completed Lectures (from Progress)
     const progresses = await Progress.find({ student: req.user.id });
-
     let totalCompletedLectures = 0;
     progresses.forEach(p => {
         if (p.completedLectures) {
@@ -462,7 +462,87 @@ const getUserStats = asyncHandler(async (req, res) => {
         }
     });
 
-    res.status(200).json({ totalCompletedLectures });
+    // 2. Daily Activity & Streaks (from Activity Logs)
+    // We only care about 'Completed' actions for streaks/consistency
+    const activities = await Activity.find({
+        student: req.user.id,
+        action: 'Completed'
+    }).sort({ createdAt: 1 });
+
+    // Group by Date (YYYY-MM-DD) and count unique lectures
+    const activityMap = {}; // { '2023-10-25': Set { lectureId1, lectureId2 } }
+    activities.forEach(act => {
+        if (!act.lecture) return;
+        const dateStr = act.createdAt.toISOString().split('T')[0];
+        if (!activityMap[dateStr]) {
+            activityMap[dateStr] = new Set();
+        }
+        activityMap[dateStr].add(act.lecture.toString());
+    });
+
+    // Convert Sets to counts for the frontend
+    const finalActivityMap = {};
+    Object.keys(activityMap).forEach(date => {
+        finalActivityMap[date] = activityMap[date].size;
+    });
+
+    const dates = Object.keys(finalActivityMap).sort();
+
+    let currentStreak = 0;
+    let maxStreak = 0;
+
+    if (dates.length > 0) {
+        // Calculate Max Streak
+        let tempStreak = 1;
+        maxStreak = 1;
+
+        for (let i = 1; i < dates.length; i++) {
+            const prevDate = new Date(dates[i - 1]);
+            const currDate = new Date(dates[i]);
+            const diffTime = Math.abs(currDate - prevDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) {
+                tempStreak++;
+            } else {
+                tempStreak = 1;
+            }
+            if (tempStreak > maxStreak) maxStreak = tempStreak;
+        }
+
+        // Calculate Current Streak
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+        const lastActiveDate = dates[dates.length - 1];
+
+        if (lastActiveDate === today || lastActiveDate === yesterday) {
+            // Traverse backwards from lastActiveDate to find streak
+            let streak = 1;
+            for (let i = dates.length - 1; i > 0; i--) {
+                const prevDate = new Date(dates[i - 1]);
+                const currDate = new Date(dates[i]);
+                const diffTime = Math.abs(currDate - prevDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            currentStreak = streak;
+        } else {
+            currentStreak = 0;
+        }
+    }
+
+    res.status(200).json({
+        totalCompletedLectures,
+        currentStreak,
+        maxStreak,
+        dailyActivity: finalActivityMap
+    });
 });
 
 module.exports = {
