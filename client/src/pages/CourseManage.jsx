@@ -243,12 +243,7 @@ const CourseManage = () => {
                                                                     {lec.resourceUrl && (
                                                                         <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
                                                                     )}
-                                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter ${lec.status === 'Live' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
-                                                                        lec.status === 'Available' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
-                                                                            'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                                                                        }`}>
-                                                                        {lec.status || 'Pending'}
-                                                                    </span>
+
                                                                 </div>
                                                             </div>
                                                         </div>
