@@ -66,16 +66,18 @@ const getCourses = asyncHandler(async (req, res) => {
 // @route   GET /api/courses/:id
 // @access  Private
 const getCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id)
+    const courseDoc = await Course.findById(req.params.id)
         .populate({
             path: 'sections.lectures',
             model: 'Lecture'
         });
 
-    if (!course) {
+    if (!courseDoc) {
         res.status(404);
         throw new Error('Course not found');
     }
+
+    let course = courseDoc.toObject();
 
     if (!course.lectureStatuses || course.lectureStatuses.length === 0) {
         course.lectureStatuses = [
@@ -83,6 +85,16 @@ const getCourse = asyncHandler(async (req, res) => {
             { label: 'In Progress', color: '#f59e0b' },
             { label: 'Completed', color: '#10b981' }
         ];
+    }
+
+    // Filter hidden content for non-admins
+    if (req.user.role !== 'admin') {
+        course.sections = course.sections
+            .filter(section => section.isPublic)
+            .map(section => ({
+                ...section,
+                lectures: section.lectures.filter(lecture => lecture.isPublic)
+            }));
     }
 
     res.status(200).json(course);
@@ -100,7 +112,7 @@ const addSection = asyncHandler(async (req, res) => {
         throw new Error('Course not found');
     }
 
-    course.sections.push({ title, lectures: [] });
+    course.sections.push({ title, isPublic: req.body.isPublic, lectures: [] });
     await course.save();
 
     res.status(201).json(course);
@@ -125,6 +137,9 @@ const updateSection = asyncHandler(async (req, res) => {
     }
 
     section.title = title || section.title;
+    if (req.body.isPublic !== undefined) {
+        section.isPublic = req.body.isPublic;
+    }
     await course.save();
 
     res.status(200).json(course);
@@ -187,7 +202,9 @@ const addLectureToSection = asyncHandler(async (req, res) => {
         resourceUrl,
         description,
         dueDate,
-        status: req.body.status || 'Pending'
+        dueDate,
+        status: req.body.status || 'Pending',
+        isPublic: req.body.isPublic !== undefined ? req.body.isPublic : false
     });
 
     // Add to section
@@ -213,7 +230,11 @@ const updateLecture = asyncHandler(async (req, res) => {
     lecture.resourceUrl = resourceUrl || lecture.resourceUrl;
     lecture.description = description || lecture.description;
     lecture.dueDate = dueDate || lecture.dueDate;
+    lecture.dueDate = dueDate || lecture.dueDate;
     lecture.status = req.body.status || lecture.status;
+    if (req.body.isPublic !== undefined) {
+        lecture.isPublic = req.body.isPublic;
+    }
 
     await lecture.save();
     res.status(200).json(lecture);
