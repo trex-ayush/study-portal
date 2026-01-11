@@ -311,7 +311,13 @@ const getEnrolledCourses = asyncHandler(async (req, res) => {
                 model: 'Lecture'
             }
         });
-    res.status(200).json(progresses);
+
+    // Only show Published courses to students (hide Draft and Archived)
+    const publishedProgresses = progresses.filter(progress =>
+        progress.course && progress.course.status === 'Published'
+    );
+
+    res.status(200).json(publishedProgresses);
 });
 
 // @desc    Get single lecture
