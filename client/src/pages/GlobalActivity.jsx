@@ -11,12 +11,36 @@ const GlobalActivity = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
+    // Filters State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [actionFilter, setActionFilter] = useState('');
+    const [userFilter, setUserFilter] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [debouncedUser, setDebouncedUser] = useState('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedUser(userFilter), 500);
+        return () => clearTimeout(timer);
+    }, [userFilter]);
+
     useEffect(() => {
         const fetchActivities = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await api.get(`/activities?page=${page}&limit=20`);
+                const params = {
+                    page,
+                    limit: 15,
+                    search: debouncedSearch,
+                    action: actionFilter === 'All' ? '' : actionFilter,
+                    user: debouncedUser
+                };
+                const res = await api.get('/activities', { params });
                 setActivities(res.data.activities);
                 setTotalPages(res.data.pages);
             } catch (error) {
@@ -28,7 +52,14 @@ const GlobalActivity = () => {
         };
 
         fetchActivities();
-    }, [page]);
+    }, [page, debouncedSearch, actionFilter, debouncedUser]);
+
+    const handleReset = () => {
+        setSearchTerm('');
+        setActionFilter('');
+        setUserFilter('');
+        setPage(1);
+    };
 
     const getActionIcon = (action) => {
         switch (action) {
@@ -63,6 +94,49 @@ const GlobalActivity = () => {
             </div>
 
             <div className="container mx-auto px-4 py-8">
+                {/* Filters Bar */}
+                <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+                    <div className="flex-1">
+                        <input
+                            type="text"
+                            placeholder="Search details..."
+                            className="w-full px-4 py-2 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <input
+                            type="text"
+                            placeholder="Filter by User Name..."
+                            className="w-full px-4 py-2 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+                            value={userFilter}
+                            onChange={(e) => setUserFilter(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-full md:w-48">
+                        <select
+                            className="w-full px-4 py-2 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+                            value={actionFilter}
+                            onChange={(e) => setActionFilter(e.target.value)}
+                        >
+                            <option value="">All Actions</option>
+                            <option value="Login">Login</option>
+                            <option value="Comment">Comment</option>
+                            <option value="Note Updated">Note Updated</option>
+                            <option value="Registered">Registered</option>
+                            <option value="Status Updated">Status Updated</option>
+                            <option value="Enrolled">Enrolled</option>
+                        </select>
+                    </div>
+                    <button
+                        onClick={handleReset}
+                        className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors"
+                    >
+                        Reset
+                    </button>
+                </div>
+
                 {loading ? (
                     <div className="flex justify-center items-center h-64 text-slate-400 animate-pulse">Loading Logs...</div>
                 ) : error ? (
@@ -84,73 +158,77 @@ const GlobalActivity = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                                    {activities.map((log) => (
-                                        <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-6 py-4 align-top">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs uppercase shrink-0">
-                                                        {log.user?.name ? log.user.name.charAt(0) : <FaUser />}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{log.user?.name || 'Unknown User'}</div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate max-w-[120px]">{log.user?.email}</div>
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold shrink-0 ${log.user?.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
-                                                                {log.user?.role || 'user'}
-                                                            </span>
+                                    {activities.map((log) => {
+                                        const user = log.user || log.student;
+                                        return (
+                                            <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-6 py-4 align-top">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs uppercase shrink-0">
+                                                            {user?.name ? user.name.charAt(0) : <FaUser />}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{user?.name || 'Unknown User'}</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="text-xs text-slate-500 dark:text-slate-500 truncate max-w-[120px]">{user?.email}</div>
+                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold shrink-0 ${user?.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                                                                    {user?.role || 'user'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap align-top">
-                                                <div className="flex items-center gap-2">
-                                                    {getActionIcon(log.action)}
-                                                    <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${log.action === 'Completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                                                        log.action === 'Started' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
-                                                            log.action === 'Enrolled' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400' :
-                                                                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                                                        }`}>
-                                                        {log.action}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 align-top">
-                                                <div className="flex flex-col gap-1 min-w-0">
-                                                    <span
-                                                        className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate hover:underline cursor-pointer block"
-                                                        title={log.course?.title || 'System Event'}
-                                                        onClick={() => log.course && navigate(`/admin/course/${log.course._id}`)}
-                                                    >
-                                                        {log.course?.title || <span className="text-slate-400 italic">Global Event</span>}
-                                                    </span>
-                                                    {log.lecture && (
-                                                        <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                                                            <span className="text-[10px] uppercase font-bold bg-slate-100 dark:bg-slate-800 px-1 rounded">Lec</span>
-                                                            <span className="text-xs truncate max-w-[180px]" title={log.lecture.title}>{log.lecture.title}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 align-top">
-                                                <div className="max-w-[200px] min-w-0">
-                                                    <div className="text-sm text-slate-700 dark:text-slate-300 mb-1">
-                                                        <div className="line-clamp-2 break-words text-xs leading-relaxed" title={log.details || ''}>
-                                                            {log.details || 'No details'}
-                                                        </div>
-                                                        {log.url && (
-                                                            <div className="mt-1 text-[10px] text-slate-400 font-mono truncate cursor-help" title={`${log.method} ${log.url}`}>
-                                                                <span className="font-bold text-slate-500 dark:text-slate-400 mr-1">{log.method}</span>
-                                                                {log.url}
+                                                </td>
+                                                );
+                                    })}
+                                                <td className="px-6 py-4 whitespace-nowrap align-top">
+                                                    <div className="flex items-center gap-2">
+                                                        {getActionIcon(log.action)}
+                                                        <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${log.action === 'Completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                                                            log.action === 'Started' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
+                                                                log.action === 'Enrolled' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400' :
+                                                                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                                            }`}>
+                                                            {log.action}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 align-top">
+                                                    <div className="flex flex-col gap-1 min-w-0">
+                                                        <span
+                                                            className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate hover:underline cursor-pointer block"
+                                                            title={log.course?.title || 'System Event'}
+                                                            onClick={() => log.course && navigate(`/admin/course/${log.course._id}`)}
+                                                        >
+                                                            {log.course?.title || <span className="text-slate-400 italic">Global Event</span>}
+                                                        </span>
+                                                        {log.lecture && (
+                                                            <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                                                                <span className="text-[10px] uppercase font-bold bg-slate-100 dark:bg-slate-800 px-1 rounded">Lec</span>
+                                                                <span className="text-xs truncate max-w-[180px]" title={log.lecture.title}>{log.lecture.title}</span>
                                                             </div>
                                                         )}
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap align-top">
-                                                {new Date(log.createdAt).toLocaleString()}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="px-6 py-4 align-top">
+                                                    <div className="max-w-[200px] min-w-0">
+                                                        <div className="text-sm text-slate-700 dark:text-slate-300 mb-1">
+                                                            <div className="line-clamp-2 break-words text-xs leading-relaxed" title={log.details || ''}>
+                                                                {log.details || 'No details'}
+                                                            </div>
+                                                            {log.url && (
+                                                                <div className="mt-1 text-[10px] text-slate-400 font-mono truncate cursor-help" title={`${log.method} ${log.url}`}>
+                                                                    <span className="font-bold text-slate-500 dark:text-slate-400 mr-1">{log.method}</span>
+                                                                    {log.url}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap align-top">
+                                                    {new Date(log.createdAt).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        ))}
                                 </tbody>
                             </table>
                         </div>

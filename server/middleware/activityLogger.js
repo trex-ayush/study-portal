@@ -53,9 +53,10 @@ const activityLogger = async (req, res, next) => {
             // Override from Controller
             if (res.locals.activity) {
                 if (res.locals.activity.skip) return;
-                if (res.locals.activity.action) logData.action = res.locals.activity.action; // Controller Specifics (e.g. Note Updated)
+                if (res.locals.activity.action) logData.action = res.locals.activity.action;
                 if (res.locals.activity.details) logData.details = res.locals.activity.details;
                 if (res.locals.activity.course) logData.course = res.locals.activity.course;
+                if (res.locals.activity.lecture) logData.lecture = res.locals.activity.lecture;
             }
 
             await Activity.create(logData);

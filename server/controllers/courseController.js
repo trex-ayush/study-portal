@@ -423,6 +423,7 @@ const updateLectureProgress = asyncHandler(async (req, res) => {
         // Let's use res.locals.activity for the PRIMARY action.
         res.locals.activity = {
             course: targetCourseId,
+            lecture: lectureId,
             action: action,
             details: `Updated status to ${status} for ${lectureTitle}`
         };
