@@ -15,6 +15,7 @@ import StudentCourseDetails from './pages/StudentCourseDetails';
 import AdminLectureView from './pages/AdminLectureView';
 import Profile from './pages/Profile';
 import CourseSettings from './pages/CourseSettings';
+import CourseStudents from './pages/CourseStudents';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useContext(AuthContext);
@@ -70,6 +71,7 @@ function App() {
                 <Route path="/admin" element={<ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin/course/:id" element={<ProtectedRoute adminOnly={true}><CourseManage /></ProtectedRoute>} />
                 <Route path="/admin/course/:id/settings" element={<ProtectedRoute adminOnly={true}><CourseSettings /></ProtectedRoute>} />
+                <Route path="/admin/course/:id/students" element={<ProtectedRoute adminOnly={true}><CourseStudents /></ProtectedRoute>} />
                 <Route path="/admin/course/:courseId/student/:studentId" element={<ProtectedRoute adminOnly={true}><StudentDetail /></ProtectedRoute>} />
                 <Route path="/admin/course/:courseId/lecture/:lectureId" element={<ProtectedRoute adminOnly={true}><AdminLectureView /></ProtectedRoute>} />
 
