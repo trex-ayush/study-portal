@@ -1,14 +1,16 @@
 const mongoose = require('mongoose');
 
-const activitySchema = mongoose.Schema({
+const activitySchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     student: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
         ref: 'User'
     },
     course: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
         ref: 'Course'
     },
     lecture: {
@@ -17,8 +19,20 @@ const activitySchema = mongoose.Schema({
     },
     action: {
         type: String,
-        required: true,
-        enum: ['Started', 'In Progress', 'Completed', 'Note Updated', 'Enrolled', 'Comment']
+        required: true
+    },
+    method: {
+        type: String,
+        required: true
+    },
+    url: {
+        type: String
+    },
+    data: {
+        type: mongoose.Schema.Types.Mixed
+    },
+    ip: {
+        type: String
     },
     details: {
         type: String

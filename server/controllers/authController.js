@@ -30,6 +30,9 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (user) {
+        // Set user for Activity Logger
+        res.locals.user = user;
+
         res.status(201).json({
             _id: user.id,
             name: user.name,
@@ -53,6 +56,7 @@ const loginUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+        res.locals.user = user; // For Activity Logger
         res.json({
             _id: user.id,
             name: user.name,
