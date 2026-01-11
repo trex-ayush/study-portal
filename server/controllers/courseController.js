@@ -449,10 +449,43 @@ const getStudentActivity = asyncHandler(async (req, res) => {
 // @desc    Get all progresses for a course (Admin)
 // @route   GET /api/courses/:id/progresses
 // @access  Private/Admin
+// @desc    Get all progresses for a course (Admin)
+// @route   GET /api/courses/:id/progresses
+// @access  Private/Admin
 const getCourseProgresses = asyncHandler(async (req, res) => {
-    const progresses = await Progress.find({ course: req.params.id })
-        .populate('student', 'name email');
-    res.status(200).json(progresses);
+    const { keyword, page, limit } = req.query;
+
+    let query = { course: req.params.id };
+
+    if (keyword) {
+        const users = await User.find({
+            $or: [
+                { name: { $regex: keyword, $options: 'i' } },
+                { email: { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('_id');
+        const userIds = users.map(u => u._id);
+        query.student = { $in: userIds };
+    }
+
+    if (page && limit) {
+        const count = await Progress.countDocuments(query);
+        const progresses = await Progress.find(query)
+            .populate('student', 'name email')
+            .limit(Number(limit))
+            .skip(Number(limit) * (Number(page) - 1));
+
+        res.status(200).json({
+            progresses,
+            page: Number(page),
+            pages: Math.ceil(count / Number(limit)),
+            total: count
+        });
+    } else {
+        const progresses = await Progress.find(query)
+            .populate('student', 'name email');
+        res.status(200).json(progresses);
+    }
 });
 
 // @desc    Get user stats (completed lectures count)
@@ -551,6 +584,22 @@ const getUserStats = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Remove student from course
+// @route   DELETE /api/courses/:id/enroll/:studentId
+// @access  Private/Admin
+const removeStudent = asyncHandler(async (req, res) => {
+    const { id, studentId } = req.params;
+
+    const progress = await Progress.findOneAndDelete({ course: id, student: studentId });
+
+    if (!progress) {
+        res.status(404);
+        throw new Error('Student not enrolled');
+    }
+
+    res.status(200).json({ message: 'Student removed' });
+});
+
 module.exports = {
     createCourse,
     updateCourse,
@@ -571,5 +620,6 @@ module.exports = {
     updateLecture,
     deleteLecture,
     getLecture,
-    getUserStats
+    getUserStats,
+    removeStudent
 };

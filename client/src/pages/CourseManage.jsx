@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog, FaUsers } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import toast from 'react-hot-toast';
 
@@ -26,7 +26,7 @@ const CourseManage = () => {
 
     // Students State
     const [enrolledStudents, setEnrolledStudents] = useState([]);
-    const [enrollEmail, setEnrollEmail] = useState('');
+
 
     const fetchCourse = async () => {
         try {
@@ -122,17 +122,7 @@ const CourseManage = () => {
         }
     };
 
-    const handleEnroll = async (e) => {
-        e.preventDefault();
-        try {
-            await api.post(`/courses/${id}/enroll`, { email: enrollEmail });
-            setEnrollEmail('');
-            fetchCourse(); // Refresh list
-            toast.success('Student enrolled!');
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Error enrolling student');
-        }
-    };
+
 
     if (!course) return <div className="p-8 text-center text-slate-500 font-medium animate-pulse">Loading Course...</div>;
 
@@ -306,64 +296,21 @@ const CourseManage = () => {
 
                     {/* RIGHT COLUMN: Management (1/3) */}
                     <div className="space-y-6">
-
-                        {/* Enroll Card */}
                         <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 transition-colors">
                             <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <FaUserPlus className="text-slate-400 dark:text-slate-500" /> Enroll Student
+                                <FaUsers className="text-slate-400 dark:text-slate-500" /> Students
                             </h2>
-                            <form onSubmit={handleEnroll} className="space-y-3">
-                                <div className="relative">
-                                    <input
-                                        type="email"
-                                        className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                                        value={enrollEmail}
-                                        onChange={(e) => setEnrollEmail(e.target.value)}
-                                        placeholder="student@example.com"
-                                        required
-                                    />
-                                </div>
-                                <button type="submit" className="w-full bg-slate-900 dark:bg-blue-600 text-white py-2 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors">
-                                    Invite User
-                                </button>
-                            </form>
-                        </div>
-
-                        {/* Students List */}
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-                            <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-950/50 flex justify-between items-center">
-                                <h3 className="font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Class List</h3>
-                                <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{enrolledStudents.length}</span>
+                            <div className="flex items-center justify-between mb-6">
+                                <span className="text-3xl font-bold text-slate-900 dark:text-white">{enrolledStudents.length}</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Enrolled</span>
                             </div>
-                            <div className="divide-y divide-gray-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
-                                {enrolledStudents.length > 0 ? (
-                                    enrolledStudents.map((prog) => (
-                                        <div key={prog._id} className="p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between group">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold border border-slate-200 dark:border-slate-700 uppercase">
-                                                    {prog.student?.name?.charAt(0) || 'S'}
-                                                </div>
-                                                <div className="overflow-hidden">
-                                                    <p className="text-xs font-semibold text-slate-900 dark:text-white truncate w-32">{prog.student?.name}</p>
-                                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate w-32">{prog.student?.email}</p>
-                                                </div>
-                                            </div>
-                                            <a
-                                                href={`/admin/course/${id}/student/${prog.student._id}`}
-                                                className="text-[10px] font-medium text-slate-400 dark:text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded transition-all opacity-0 group-hover:opacity-100"
-                                            >
-                                                Details
-                                            </a>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="p-6 text-center">
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No enrolled students.</p>
-                                    </div>
-                                )}
-                            </div>
+                            <button
+                                onClick={() => navigate(`/admin/course/${id}/students`)}
+                                className="w-full bg-slate-900 dark:bg-blue-600 text-white py-2 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                Manage Students
+                            </button>
                         </div>
-
                     </div>
                 </div>
             </div>

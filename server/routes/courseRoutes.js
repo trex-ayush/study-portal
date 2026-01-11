@@ -19,7 +19,8 @@ const {
     updateLecture,
     deleteLecture,
     getLecture,
-    getUserStats
+    getUserStats,
+    removeStudent
 } = require('../controllers/courseController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -45,5 +46,6 @@ router.post('/:id/sections/:sectionId/lectures', protect, admin, addLectureToSec
 router.post('/:id/enroll', protect, admin, enrollStudent);
 router.get('/:id/activity/:studentId', protect, admin, getStudentActivity);
 router.get('/:id/progresses', protect, admin, getCourseProgresses);
+router.delete('/:id/enroll/:studentId', protect, admin, removeStudent);
 
 module.exports = router;
