@@ -4,7 +4,8 @@ const Lecture = require('../models/Lecture');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 const Activity = require('../models/Activity');
-const { canManage } = require('../middleware/ownershipMiddleware');
+const CourseTeacher = require('../models/CourseTeacher');
+const { canManage, getTeacherPermissions } = require('../middleware/ownershipMiddleware');
 
 // @desc    Create new course
 // @route   POST /api/courses
@@ -85,14 +86,32 @@ const getCourse = asyncHandler(async (req, res) => {
         ];
     }
 
-    // Filter hidden content for non-owners (admin or course owner can see all)
-    if (!canManage(req.user, course.user)) {
+    const userId = req.user?.id || req.user?._id;
+    const isOwnerOrAdmin = canManage(req.user, course.user);
+
+    // Check if user is a teacher
+    const teacherPermissions = await getTeacherPermissions(userId, req.params.id);
+    const isTeacher = !!teacherPermissions;
+    const hasFullAccess = teacherPermissions?.full_access || teacherPermissions?.manage_content;
+
+    // Filter hidden content for non-owners and non-teachers
+    if (!isOwnerOrAdmin && !hasFullAccess) {
         course.sections = course.sections
             .filter(section => section.isPublic)
             .map(section => ({
                 ...section,
                 lectures: section.lectures.filter(lecture => lecture.isPublic)
             }));
+    }
+
+    // Add user role info
+    if (isOwnerOrAdmin) {
+        course.userRole = req.user.role === 'admin' ? 'admin' : 'owner';
+    } else if (isTeacher) {
+        course.userRole = 'teacher';
+        course.permissions = teacherPermissions;
+    } else {
+        course.userRole = 'student';
     }
 
     res.status(200).json(course);
@@ -678,18 +697,50 @@ const removeStudent = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Student removed' });
 });
 
-// @desc    Get courses created by current user
+// @desc    Get courses created by current user OR where user is a teacher
 // @route   GET /api/courses/my/created
 // @access  Private
 const getCreatedCourses = asyncHandler(async (req, res) => {
-    const courses = await Course.find({ user: req.user.id })
+    // Get courses created by user
+    const ownedCourses = await Course.find({ user: req.user.id })
         .populate({
             path: 'sections.lectures',
             model: 'Lecture'
         })
         .sort({ createdAt: -1 });
 
-    res.status(200).json(courses);
+    // Get courses where user is a teacher
+    const teacherAssignments = await CourseTeacher.find({ teacher: req.user.id });
+    const teacherCourseIds = teacherAssignments.map(t => t.course);
+
+    const teachingCourses = await Course.find({ _id: { $in: teacherCourseIds } })
+        .populate({
+            path: 'sections.lectures',
+            model: 'Lecture'
+        })
+        .sort({ createdAt: -1 });
+
+    // Combine and mark courses with role info
+    const ownedWithRole = ownedCourses.map(c => ({
+        ...c.toObject(),
+        userRole: 'owner'
+    }));
+
+    const teachingWithRole = teachingCourses.map(c => {
+        const assignment = teacherAssignments.find(t => t.course.toString() === c._id.toString());
+        return {
+            ...c.toObject(),
+            userRole: 'teacher',
+            permissions: assignment ? assignment.permissions : {}
+        };
+    });
+
+    // Combine and sort by createdAt
+    const allCourses = [...ownedWithRole, ...teachingWithRole].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json(allCourses);
 });
 
 // @desc    Delete course

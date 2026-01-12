@@ -1,9 +1,10 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import BroadcastList from '../components/BroadcastList';
+import TeacherManagement from '../components/TeacherManagement';
 import toast from 'react-hot-toast';
 import AuthContext from '../context/AuthContext';
 
@@ -43,11 +44,35 @@ const CourseManage = () => {
     const [broadcastPagination, setBroadcastPagination] = useState({ page: 1, pages: 1, total: 0 });
     const [unreadBroadcastCount, setUnreadBroadcastCount] = useState(0);
 
-    // Tab configuration - Curriculum, Broadcasts, Students
+    // User permissions state
+    const [userPermissions, setUserPermissions] = useState({
+        isAdmin: false,
+        isCreator: false,
+        isTeacher: false,
+        permissions: {
+            manage_content: false,
+            manage_students: false,
+            full_access: false,
+            manage_teachers: false
+        }
+    });
+
+    // Check if user can manage teachers
+    const canManageTeachers = userPermissions.isAdmin || userPermissions.isCreator ||
+        userPermissions.permissions.manage_teachers || userPermissions.permissions.full_access;
+
+    // Check if user is owner (admin or creator)
+    const isOwner = userPermissions.isAdmin || userPermissions.isCreator;
+
+    // State for dismissing teacher permissions banner
+    const [showPermissionsBanner, setShowPermissionsBanner] = useState(true);
+
+    // Tab configuration - Curriculum, Broadcasts, Students, Teachers
     const tabs = [
         { id: 'curriculum', label: 'Curriculum', icon: FaBook },
         { id: 'broadcasts', label: 'Broadcasts', icon: FaBullhorn },
         { id: 'students', label: 'Students', icon: FaUsers },
+        { id: 'teachers', label: 'Teachers', icon: FaUserTie },
     ];
 
     const setActiveTab = (tabId) => {
@@ -118,10 +143,21 @@ const CourseManage = () => {
         }
     };
 
-    // Initial load - fetch course and unread count
+    // Fetch user permissions for this course
+    const fetchUserPermissions = async () => {
+        try {
+            const res = await api.get(`/courses/${id}/my-permissions`);
+            setUserPermissions(res.data);
+        } catch (err) {
+            console.error("Failed to fetch user permissions", err);
+        }
+    };
+
+    // Initial load - fetch course, unread count, and permissions
     useEffect(() => {
         fetchCourse();
         fetchUnreadCount();
+        fetchUserPermissions();
     }, [id]);
 
     // Lazy load data based on active tab
@@ -250,6 +286,18 @@ const CourseManage = () => {
             toast.success(res.data.allowStudentBroadcasts ? 'Students can now broadcast' : 'Student broadcasts disabled');
         } catch (error) {
             toast.error('Error updating broadcast settings');
+        }
+    };
+
+    // Leave course (for teachers)
+    const handleLeaveCourse = async () => {
+        if (!window.confirm('Are you sure you want to leave this course? You will lose access to manage this course.')) return;
+        try {
+            await api.delete(`/courses/${id}/teachers/leave`);
+            toast.success('You have left the course');
+            navigate('/dashboard');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error leaving course');
         }
     };
 
@@ -539,13 +587,30 @@ const CourseManage = () => {
                 onPageChange={fetchBroadcasts}
                 onRefresh={() => fetchBroadcasts(broadcastPage)}
                 canBroadcast={true}
-                isOwner={true}
+                isOwner={isOwner}
                 allowStudentBroadcasts={allowStudentBroadcasts}
                 onToggleStudentBroadcasts={handleToggleStudentBroadcasts}
                 currentUserId={user?._id}
             />
         );
     };
+
+    // Render Teachers Tab Content
+    const renderTeachersTab = () => (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white">Course Teachers</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage teachers and their permissions for this course</p>
+            </div>
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
+                <TeacherManagement
+                    courseId={id}
+                    canManageTeachers={canManageTeachers}
+                    isOwner={isOwner}
+                />
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-gray-100 pb-12 transition-colors duration-300">
@@ -573,8 +638,8 @@ const CourseManage = () => {
                         </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="flex gap-1 -mb-px">
+                    {/* Tabs - Mobile Friendly */}
+                    <div className="flex -mb-px overflow-x-auto scrollbar-hide">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
                             const showBadge = tab.id === 'broadcasts' && unreadBroadcastCount > 0;
@@ -582,16 +647,16 @@ const CourseManage = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                                         activeTab === tab.id
                                             ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
                                             : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                                 >
-                                    <Icon size={14} />
+                                    <Icon className="shrink-0 text-[12px] sm:text-sm" />
                                     {tab.label}
                                     {showBadge && (
-                                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                        <span className="bg-red-500 text-white text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full min-w-[16px] sm:min-w-[18px] text-center">
                                             {unreadBroadcastCount > 99 ? '99+' : unreadBroadcastCount}
                                         </span>
                                     )}
@@ -602,11 +667,84 @@ const CourseManage = () => {
                 </div>
             </div>
 
+            {/* Teacher Permissions Banner - Compact & Mobile Friendly */}
+            {userPermissions.isTeacher && !isOwner && showPermissionsBanner && (
+                <div className="container mx-auto px-4 pt-3">
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 sm:px-4 sm:py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                            {/* Left: Icon + Text */}
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                                    <FaUserTie className="text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-xs sm:text-sm font-medium text-slate-800 dark:text-white whitespace-nowrap">You're a Teacher</span>
+                                        <span className="hidden sm:inline text-slate-400 dark:text-slate-500">|</span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {userPermissions.permissions.full_access ? (
+                                                <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 font-medium">
+                                                    Full Access
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    {userPermissions.permissions.manage_content && (
+                                                        <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
+                                                            Content
+                                                        </span>
+                                                    )}
+                                                    {userPermissions.permissions.manage_students && (
+                                                        <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 font-medium">
+                                                            Students
+                                                        </span>
+                                                    )}
+                                                    {userPermissions.permissions.manage_teachers && (
+                                                        <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 font-medium">
+                                                            Teachers
+                                                        </span>
+                                                    )}
+                                                    {!userPermissions.permissions.manage_content &&
+                                                     !userPermissions.permissions.manage_students &&
+                                                     !userPermissions.permissions.manage_teachers && (
+                                                        <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium">
+                                                            View Only
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Right: Actions */}
+                            <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                    onClick={handleLeaveCourse}
+                                    className="flex items-center gap-1 px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium text-red-600 hover:text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                                    title="Leave this course"
+                                >
+                                    <FaSignOutAlt size={10} />
+                                    <span className="hidden xs:inline">Leave</span>
+                                </button>
+                                <button
+                                    onClick={() => setShowPermissionsBanner(false)}
+                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+                                    title="Dismiss"
+                                >
+                                    <FaTimes size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tab Content */}
             <div className="container mx-auto px-4 py-6">
                 {activeTab === 'curriculum' && renderCurriculumTab()}
                 {activeTab === 'broadcasts' && renderBroadcastsTab()}
                 {activeTab === 'students' && renderStudentsTab()}
+                {activeTab === 'teachers' && renderTeachersTab()}
             </div>
 
             {/* Section Modal */}
