@@ -110,7 +110,7 @@ const StatusSelector = ({ status, onChange, disabled, customStatuses = [], progr
 
                 {/* Dropdown for changing status */}
                 {isOpen && (
-                    <div className="absolute right-0 mt-2 w-48 origin-top-right bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 focus:outline-none z-[100] animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 focus:outline-none z-[9999] overflow-hidden">
                         <div className="p-1">
                             {options.map((option) => (
                                 <button
@@ -167,7 +167,7 @@ const StatusSelector = ({ status, onChange, disabled, customStatuses = [], progr
             </button>
 
             {isOpen && (
-                <div className="absolute left-0 mt-2 w-48 origin-top-left bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 focus:outline-none z-[100] animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 focus:outline-none z-[9999] overflow-hidden">
                     <div className="p-1">
                         {options.map((option) => (
                             <button

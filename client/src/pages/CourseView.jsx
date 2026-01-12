@@ -547,7 +547,7 @@ const CourseView = () => {
                                         <div className="flex-1 sm:flex-initial">
                                             <StatusSelector
                                                 status={progressMap[selectedLecture._id]?.status || 'Not Started'}
-                                                onChange={(newStatus) => handleStatusChange(selectedLecture._id, newStatus)}
+                                                onChange={(newStatus) => handleUpdateProgress(newStatus)}
                                                 disabled={false}
                                                 customStatuses={course?.lectureStatuses}
                                             />
