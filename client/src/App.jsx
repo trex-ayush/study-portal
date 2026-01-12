@@ -36,6 +36,22 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
+// Route for course owners (admin OR course owner - verified by backend)
+const CourseOwnerRoute = ({ children }) => {
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center dark:bg-slate-950"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // Backend will verify ownership, frontend just ensures user is logged in
+  return children;
+};
+
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -69,13 +85,16 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
 
+                {/* Admin-only routes */}
                 <Route path="/admin" element={<ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/admin/course/:id" element={<ProtectedRoute adminOnly={true}><CourseManage /></ProtectedRoute>} />
-                <Route path="/admin/course/:id/settings" element={<ProtectedRoute adminOnly={true}><CourseSettings /></ProtectedRoute>} />
                 <Route path="/admin/activities" element={<ProtectedRoute adminOnly={true}><GlobalActivity /></ProtectedRoute>} />
-                <Route path="/admin/course/:id/students" element={<ProtectedRoute adminOnly={true}><CourseStudents /></ProtectedRoute>} />
-                <Route path="/admin/course/:courseId/student/:studentId" element={<ProtectedRoute adminOnly={true}><StudentDetail /></ProtectedRoute>} />
-                <Route path="/admin/course/:courseId/lecture/:lectureId" element={<ProtectedRoute adminOnly={true}><AdminLectureView /></ProtectedRoute>} />
+
+                {/* Course owner routes (admin OR course owner - backend verifies ownership) */}
+                <Route path="/admin/course/:id" element={<CourseOwnerRoute><CourseManage /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:id/settings" element={<CourseOwnerRoute><CourseSettings /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:id/students" element={<CourseOwnerRoute><CourseStudents /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:courseId/lecture/:lectureId" element={<CourseOwnerRoute><AdminLectureView /></CourseOwnerRoute>} />
 
                 <Route path="/" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
