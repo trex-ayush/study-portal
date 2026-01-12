@@ -338,6 +338,20 @@ const getEnrolledCourses = asyncHandler(async (req, res) => {
         progress.course && progress.course.status === 'Published'
     );
 
+    // Filter hidden content for non-admins
+    if (req.user.role !== 'admin') {
+        publishedProgresses.forEach(progress => {
+            if (progress.course && progress.course.sections) {
+                progress.course.sections = progress.course.sections
+                    .filter(section => section.isPublic)
+                    .map(section => ({
+                        ...section.toObject(),
+                        lectures: section.lectures.filter(lecture => lecture.isPublic)
+                    }));
+            }
+        });
+    }
+
     res.status(200).json(publishedProgresses);
 });
 
