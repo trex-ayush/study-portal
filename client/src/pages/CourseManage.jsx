@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useContext } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaPlus, FaUserPlus, FaChevronDown, FaChevronUp, FaBook, FaCog, FaUsers } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn } from 'react-icons/fa';
 import Modal from '../components/Modal';
+import BroadcastList from '../components/BroadcastList';
 import toast from 'react-hot-toast';
+import AuthContext from '../context/AuthContext';
 
 const CourseManage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { user } = useContext(AuthContext);
+
+    // Active tab from URL or default to 'curriculum'
+    const activeTab = searchParams.get('tab') || 'curriculum';
+
     const [course, setCourse] = useState(null);
     const [newSectionTitle, setNewSectionTitle] = useState('');
     const [newSectionIsPublic, setNewSectionIsPublic] = useState(true);
@@ -17,43 +25,128 @@ const CourseManage = () => {
     const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
     const [editingSectionId, setEditingSectionId] = useState(null);
 
-    // Course Settings
-    // (State removed, now on separate page)
-
     // Lecture State
     const [isLectureModalOpen, setIsLectureModalOpen] = useState(false);
-    const [activeSectionId, setActiveSectionId] = useState(null); // For adding new lecture
-    const [editingLectureId, setEditingLectureId] = useState(null); // For editing existing lecture
+    const [activeSectionId, setActiveSectionId] = useState(null);
+    const [editingLectureId, setEditingLectureId] = useState(null);
     const [newLecture, setNewLecture] = useState({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
 
     // Students State
     const [enrolledStudents, setEnrolledStudents] = useState([]);
+    const [studentsLoaded, setStudentsLoaded] = useState(false);
 
+    // Broadcast State
+    const [broadcasts, setBroadcasts] = useState([]);
+    const [broadcastsLoaded, setBroadcastsLoaded] = useState(false);
+    const [allowStudentBroadcasts, setAllowStudentBroadcasts] = useState(false);
+    const [broadcastPage, setBroadcastPage] = useState(1);
+    const [broadcastPagination, setBroadcastPagination] = useState({ page: 1, pages: 1, total: 0 });
+    const [unreadBroadcastCount, setUnreadBroadcastCount] = useState(0);
 
+    // Tab configuration - Curriculum, Broadcasts, Students
+    const tabs = [
+        { id: 'curriculum', label: 'Curriculum', icon: FaBook },
+        { id: 'broadcasts', label: 'Broadcasts', icon: FaBullhorn },
+        { id: 'students', label: 'Students', icon: FaUsers },
+    ];
+
+    const setActiveTab = (tabId) => {
+        setSearchParams({ tab: tabId });
+    };
+
+    // Fetch course data (always needed for header)
     const fetchCourse = async () => {
         try {
             const res = await api.get(`/courses/${id}`);
             setCourse(res.data);
-
-            const progRes = await api.get(`/courses/${id}/progresses`);
-            setEnrolledStudents(progRes.data);
         } catch (err) {
-            console.error("Failed to fetch data", err);
+            console.error("Failed to fetch course", err);
         }
     };
 
+    // Fetch students (lazy load)
+    const fetchStudents = async () => {
+        if (studentsLoaded) return;
+        try {
+            const res = await api.get(`/courses/${id}/progresses`);
+            setEnrolledStudents(res.data);
+            setStudentsLoaded(true);
+        } catch (err) {
+            console.error("Failed to fetch students", err);
+        }
+    };
+
+    // Fetch broadcasts (lazy load)
+    const fetchBroadcasts = async (page = 1) => {
+        try {
+            const res = await api.get(`/broadcasts/course/${id}?page=${page}&limit=5`);
+            setBroadcasts(res.data.broadcasts);
+            setBroadcastPagination(res.data.pagination);
+            setBroadcastPage(page);
+            setBroadcastsLoaded(true);
+        } catch (err) {
+            console.error("Failed to fetch broadcasts", err);
+        }
+    };
+
+    const fetchBroadcastSettings = async () => {
+        try {
+            const res = await api.get(`/broadcasts/course/${id}/can-broadcast`);
+            setAllowStudentBroadcasts(res.data.allowStudentBroadcasts || false);
+        } catch (err) {
+            console.error("Failed to fetch broadcast settings", err);
+        }
+    };
+
+    // Fetch unread broadcast count
+    const fetchUnreadCount = async () => {
+        try {
+            const res = await api.get(`/broadcasts/course/${id}/unread-count`);
+            setUnreadBroadcastCount(res.data.unreadCount || 0);
+        } catch (err) {
+            console.error("Failed to fetch unread count", err);
+        }
+    };
+
+    // Mark broadcasts as read
+    const markBroadcastsAsRead = async () => {
+        try {
+            await api.post(`/broadcasts/course/${id}/mark-read`);
+            setUnreadBroadcastCount(0);
+        } catch (err) {
+            console.error("Failed to mark broadcasts as read", err);
+        }
+    };
+
+    // Initial load - fetch course and unread count
     useEffect(() => {
         fetchCourse();
+        fetchUnreadCount();
     }, [id]);
+
+    // Lazy load data based on active tab
+    useEffect(() => {
+        if (activeTab === 'students' && !studentsLoaded) {
+            fetchStudents();
+        }
+        if (activeTab === 'broadcasts') {
+            if (!broadcastsLoaded) {
+                fetchBroadcasts();
+                fetchBroadcastSettings();
+            }
+            // Mark broadcasts as read when viewing the tab
+            if (unreadBroadcastCount > 0) {
+                markBroadcastsAsRead();
+            }
+        }
+    }, [activeTab, studentsLoaded, broadcastsLoaded, unreadBroadcastCount]);
 
     const handleSaveSection = async (e) => {
         e.preventDefault();
         try {
             if (editingSectionId) {
-                // Update
                 await api.put(`/courses/${id}/sections/${editingSectionId}`, { title: newSectionTitle, isPublic: newSectionIsPublic });
             } else {
-                // Create
                 await api.post(`/courses/${id}/sections`, { title: newSectionTitle, isPublic: newSectionIsPublic });
             }
             setNewSectionTitle('');
@@ -81,10 +174,8 @@ const CourseManage = () => {
         e.preventDefault();
         try {
             if (editingLectureId) {
-                // Update
                 await api.put(`/courses/lectures/${editingLectureId}`, newLecture);
             } else {
-                // Create
                 if (!activeSectionId) return alert('Select a section first');
                 await api.post(`/courses/${id}/sections/${activeSectionId}/lectures`, newLecture);
             }
@@ -99,8 +190,6 @@ const CourseManage = () => {
         }
     };
 
-    // (handleUpdateCourse removed)
-
     const handleEditClick = (lec, sectionId) => {
         setNewLecture({
             title: lec.title,
@@ -112,7 +201,7 @@ const CourseManage = () => {
             isPublic: lec.isPublic
         });
         setEditingLectureId(lec._id);
-        setActiveSectionId(sectionId); // Open the form in the relevant section
+        setActiveSectionId(sectionId);
     };
 
     const handleDeleteLecture = async (lectureId) => {
@@ -153,219 +242,372 @@ const CourseManage = () => {
         }));
     };
 
-
+    // Toggle student broadcasts
+    const handleToggleStudentBroadcasts = async () => {
+        try {
+            const res = await api.put(`/broadcasts/course/${id}/settings`);
+            setAllowStudentBroadcasts(res.data.allowStudentBroadcasts);
+            toast.success(res.data.allowStudentBroadcasts ? 'Students can now broadcast' : 'Student broadcasts disabled');
+        } catch (error) {
+            toast.error('Error updating broadcast settings');
+        }
+    };
 
     if (!course) return <div className="p-8 text-center text-slate-500 font-medium animate-pulse">Loading Course...</div>;
+
+    // Render Curriculum Tab Content
+    const renderCurriculumTab = () => (
+        <div className="space-y-6">
+            {/* Sections Header & Add Form */}
+            <div className="flex items-end justify-between">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Course Curriculum</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Organize your course content into sections and lectures</p>
+                </div>
+                <button
+                    onClick={() => {
+                        setEditingSectionId(null);
+                        setNewSectionTitle('');
+                        setNewSectionIsPublic(true);
+                        setIsSectionModalOpen(true);
+                    }}
+                    className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
+                >
+                    + Add Section
+                </button>
+            </div>
+
+            {/* Sections List */}
+            <div className="space-y-4">
+                {course.sections && course.sections.length > 0 ? (
+                    course.sections.map((section) => (
+                        <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
+                            <div
+                                className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/50"
+                                onClick={() => toggleSection(section._id)}
+                            >
+                                <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2 select-none">
+                                    <div className={`transition-transform duration-200 ${expandedSections[section._id] !== false ? 'rotate-180' : ''}`}>
+                                        <FaChevronDown className="text-slate-400 text-xs" />
+                                    </div>
+                                    <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
+                                    {section.title}
+                                    <span className="text-xs text-slate-400 font-normal ml-2">({section.lectures?.length || 0} lectures)</span>
+                                </h3>
+                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => handleToggleSectionVisibility(section._id, section.isPublic)}
+                                        className="p-1.5 transition-colors"
+                                        title={section.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
+                                    >
+                                        {section.isPublic ? <FaEye className="text-green-500" size={14} /> : <FaEyeSlash className="text-slate-400" size={14} />}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setEditingSectionId(section._id);
+                                            setNewSectionTitle(section.title);
+                                            setNewSectionIsPublic(section.isPublic);
+                                            setIsSectionModalOpen(true);
+                                        }}
+                                        className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Edit Section"
+                                    >
+                                        <FaEdit size={12} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteSection(section._id)}
+                                        className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                                        title="Delete Section"
+                                    >
+                                        <FaTrash size={12} />
+                                    </button>
+                                    <div className="h-4 w-px bg-gray-200 dark:bg-slate-700 mx-1"></div>
+                                    <button
+                                        onClick={() => {
+                                            setActiveSectionId(section._id);
+                                            setEditingLectureId(null);
+                                            setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
+                                            setIsLectureModalOpen(true);
+                                        }}
+                                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm"
+                                    >
+                                        + Add Lecture
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Lectures List */}
+                            {expandedSections[section._id] !== false && (
+                                <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
+                                    {section.lectures && section.lectures.length > 0 ? (
+                                        section.lectures.map((lec) => (
+                                            <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
+                                                        {lec.number}
+                                                    </div>
+                                                    <div>
+                                                        <a
+                                                            href={`/course/${id}/lecture/${lec._id}`}
+                                                            className="font-medium text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer"
+                                                        >
+                                                            {lec.title}
+                                                        </a>
+                                                        <div className="flex items-center gap-3 mt-0.5">
+                                                            {lec.dueDate && (
+                                                                <span className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">
+                                                                    Due {new Date(lec.dueDate).toLocaleDateString()}
+                                                                </span>
+                                                            )}
+                                                            {lec.resourceUrl && (
+                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
+                                                        className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
+                                                    >
+                                                        {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            handleEditClick(lec, section._id);
+                                                            setIsLectureModalOpen(true);
+                                                        }}
+                                                        className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <FaEdit size={12} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteLecture(lec._id)}
+                                                        className="p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <FaTrash size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-6 text-center">
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed transition-colors">
+                        <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <FaBook className="text-slate-300 dark:text-slate-600" />
+                        </div>
+                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">Start your curriculum</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Add a section to organize your lectures.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    // Render Students Tab Content
+    const renderStudentsTab = () => (
+        <div className="space-y-6">
+            <div className="flex items-end justify-between">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Enrolled Students</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage students enrolled in this course</p>
+                </div>
+                <button
+                    onClick={() => navigate(`/admin/course/${id}/students`)}
+                    className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
+                >
+                    Manage Students
+                </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Total Enrolled</p>
+                    <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{enrolledStudents.length}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Active Today</p>
+                    <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
+                        {enrolledStudents.filter(s => {
+                            const lastActive = new Date(s.updatedAt);
+                            const today = new Date();
+                            return lastActive.toDateString() === today.toDateString();
+                        }).length}
+                    </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Avg. Progress</p>
+                    <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+                        {enrolledStudents.length > 0
+                            ? Math.round(enrolledStudents.reduce((acc, s) => {
+                                const total = course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 1;
+                                const completed = s.completedLectures?.length || 0;
+                                return acc + (completed / total) * 100;
+                            }, 0) / enrolledStudents.length)
+                            : 0}%
+                    </p>
+                </div>
+            </div>
+
+            {/* Students List */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden">
+                {enrolledStudents.length > 0 ? (
+                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                        {enrolledStudents.slice(0, 10).map((progress) => (
+                            <div key={progress._id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center">
+                                        <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                            {progress.student?.name?.charAt(0)?.toUpperCase() || '?'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900 dark:text-white">{progress.student?.name || 'Unknown'}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{progress.student?.email || ''}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                            {progress.completedLectures?.length || 0} / {course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 0}
+                                        </p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">Completed</p>
+                                    </div>
+                                    <div className="w-24 h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-green-500 rounded-full transition-all"
+                                            style={{
+                                                width: `${Math.round((progress.completedLectures?.length || 0) / (course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 1) * 100)}%`
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12">
+                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <FaUsers className="text-slate-300 dark:text-slate-600" />
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">No students enrolled yet</p>
+                    </div>
+                )}
+                {enrolledStudents.length > 10 && (
+                    <div className="p-4 border-t border-gray-100 dark:border-slate-800 text-center">
+                        <button
+                            onClick={() => navigate(`/admin/course/${id}/students`)}
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            View all {enrolledStudents.length} students
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    // Render Broadcasts Tab Content (using shared component)
+    const renderBroadcastsTab = () => {
+        if (!broadcastsLoaded) {
+            return (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white"></div>
+                </div>
+            );
+        }
+
+        return (
+            <BroadcastList
+                courseId={id}
+                broadcasts={broadcasts}
+                pagination={broadcastPagination}
+                currentPage={broadcastPage}
+                onPageChange={fetchBroadcasts}
+                onRefresh={() => fetchBroadcasts(broadcastPage)}
+                canBroadcast={true}
+                isOwner={true}
+                allowStudentBroadcasts={allowStudentBroadcasts}
+                onToggleStudentBroadcasts={handleToggleStudentBroadcasts}
+                currentUserId={user?._id}
+            />
+        );
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-gray-100 pb-12 transition-colors duration-300">
 
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-16 z-10 transition-colors duration-300">
-                <div className="container mx-auto px-4 h-20 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{course.title}</h1>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-lg truncate">{course.description}</p>
+                <div className="container mx-auto px-4">
+                    <div className="h-16 flex items-center justify-between">
+                        <div className="min-w-0">
+                            <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate">{course.title}</h1>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <button
+                                onClick={() => navigate(`/course/${id}`)}
+                                className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                            >
+                                <FaEye className="text-slate-400" size={12} /> Preview
+                            </button>
+                            <button
+                                onClick={() => navigate(`/admin/course/${id}/settings`)}
+                                className="flex items-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 transition-colors"
+                            >
+                                <FaCog size={12} /> Settings
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => navigate(`/course/${id}`)}
-                            className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors"
-                        >
-                            <FaEye className="text-slate-400 dark:text-slate-500" /> Student View
-                        </button>
-                        <button
-                            onClick={() => navigate(`/admin/course/${id}/settings`)}
-                            className="flex items-center gap-2 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
-                        >
-                            <FaCog /> Settings
-                        </button>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 -mb-px">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const showBadge = tab.id === 'broadcasts' && unreadBroadcastCount > 0;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                        activeTab === tab.id
+                                            ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
+                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    <Icon size={14} />
+                                    {tab.label}
+                                    {showBadge && (
+                                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                            {unreadBroadcastCount > 99 ? '99+' : unreadBroadcastCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    {/* LEFT COLUMN: Course Content (2/3) */}
-                    <div className="lg:col-span-2 space-y-8">
-
-                        {/* Sections Header & Add Form */}
-                        <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-4">
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Curriculum</h2>
-                            <button
-                                onClick={() => {
-                                    setEditingSectionId(null);
-                                    setNewSectionTitle('');
-                                    setNewSectionIsPublic(true);
-                                    setIsSectionModalOpen(true);
-                                }}
-                                className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
-                            >
-                                + Add Section
-                            </button>
-                        </div>
-
-                        {/* Sections List */}
-                        <div className="space-y-6">
-                            {course.sections && course.sections.length > 0 ? (
-                                course.sections.map((section) => (
-                                    <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
-                                        <div
-                                            className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/50"
-                                            onClick={() => toggleSection(section._id)}
-                                        >
-                                            <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2 select-none">
-                                                <div className={`transition-transform duration-200 ${expandedSections[section._id] !== false ? 'rotate-180' : ''}`}>
-                                                    <FaChevronDown className="text-slate-400 text-xs" />
-                                                </div>
-                                                <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
-                                                {section.title}
-                                            </h3>
-                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => handleToggleSectionVisibility(section._id, section.isPublic)}
-                                                    className="p-1.5 transition-colors"
-                                                    title={section.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
-                                                >
-                                                    {section.isPublic ? <FaEye className="text-green-500" size={14} /> : <FaEyeSlash className="text-slate-400" size={14} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingSectionId(section._id);
-                                                        setNewSectionTitle(section.title);
-                                                        setNewSectionIsPublic(section.isPublic);
-                                                        setIsSectionModalOpen(true);
-                                                    }}
-                                                    className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                                                    title="Edit Section"
-                                                >
-                                                    <FaEdit size={12} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteSection(section._id)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Delete Section"
-                                                >
-                                                    <FaTrash size={12} />
-                                                </button>
-                                                <div className="h-4 w-px bg-gray-200 dark:bg-slate-700 mx-1"></div>
-                                                <button
-                                                    onClick={() => {
-                                                        setActiveSectionId(section._id);
-                                                        setActiveSectionId(section._id);
-                                                        setEditingLectureId(null);
-                                                        setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
-                                                        setIsLectureModalOpen(true);
-                                                    }}
-                                                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm"
-                                                >
-                                                    + Add Lecture
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Lectures List */}
-                                        {expandedSections[section._id] !== false && (
-                                            <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
-                                                {section.lectures && section.lectures.length > 0 ? (
-                                                    section.lectures.map((lec) => (
-                                                        <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
-                                                                    {lec.number}
-                                                                </div>
-                                                                <div>
-                                                                    <a
-                                                                        href={`/course/${id}/lecture/${lec._id}`}
-                                                                        className="font-medium text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer"
-                                                                    >
-                                                                        {lec.title}
-                                                                    </a>
-                                                                    <div className="flex items-center gap-3 mt-0.5">
-                                                                        {lec.dueDate && (
-                                                                            <span className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">
-                                                                                Due {new Date(lec.dueDate).toLocaleDateString()}
-                                                                            </span>
-                                                                        )}
-                                                                        {lec.resourceUrl && (
-                                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
-                                                                        )}
-
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
-                                                                    className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                    title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
-                                                                >
-                                                                    {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleEditClick(lec, section._id);
-                                                                        setIsLectureModalOpen(true);
-                                                                    }}
-                                                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                    title="Edit"
-                                                                >
-                                                                    <FaEdit size={12} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteLecture(lec._id)}
-                                                                    className="p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                                                    title="Delete"
-                                                                >
-                                                                    <FaTrash size={12} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="p-6 text-center">
-                                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed transition-colors">
-                                    <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <FaBook className="text-slate-300 dark:text-slate-600" />
-                                    </div>
-                                    <h3 className="text-sm font-medium text-slate-900 dark:text-white">Start your curriculum</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Add a section to organize your lectures.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: Management (1/3) */}
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 transition-colors">
-                            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <FaUsers className="text-slate-400 dark:text-slate-500" /> Students
-                            </h2>
-                            <div className="flex items-center justify-between mb-6">
-                                <span className="text-3xl font-bold text-slate-900 dark:text-white">{enrolledStudents.length}</span>
-                                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Enrolled</span>
-                            </div>
-                            <button
-                                onClick={() => navigate(`/admin/course/${id}/students`)}
-                                className="w-full bg-slate-900 dark:bg-blue-600 text-white py-2 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                            >
-                                Manage Students
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* Tab Content */}
+            <div className="container mx-auto px-4 py-6">
+                {activeTab === 'curriculum' && renderCurriculumTab()}
+                {activeTab === 'broadcasts' && renderBroadcastsTab()}
+                {activeTab === 'students' && renderStudentsTab()}
             </div>
-
 
             {/* Section Modal */}
             <Modal
@@ -471,8 +713,6 @@ const CourseManage = () => {
                         />
                     </div>
 
-
-
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Description</label>
                         <textarea
@@ -489,8 +729,7 @@ const CourseManage = () => {
                     </div>
                 </form>
             </Modal>
-
-        </div >
+        </div>
     );
 };
 
