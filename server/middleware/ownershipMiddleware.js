@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Course = require('../models/Course');
 const Lecture = require('../models/Lecture');
 const Broadcast = require('../models/Broadcast');
+const CourseTeacher = require('../models/CourseTeacher');
 
 /**
  * Check if user is admin
@@ -31,6 +32,35 @@ const canManage = (user, ownerId) => {
 };
 
 /**
+ * Get teacher permissions for a course
+ * @param {string} userId - User's ID
+ * @param {string} courseId - Course ID
+ * @returns {Object|null} - Permissions object or null if not a teacher
+ */
+const getTeacherPermissions = async (userId, courseId) => {
+    const courseTeacher = await CourseTeacher.findOne({
+        course: courseId,
+        teacher: userId
+    });
+    return courseTeacher ? courseTeacher.permissions : null;
+};
+
+/**
+ * Check if user has specific teacher permission
+ * @param {string} userId - User's ID
+ * @param {string} courseId - Course ID
+ * @param {string} permission - Permission to check (manage_content, manage_students, full_access, manage_teachers)
+ * @returns {boolean}
+ */
+const hasTeacherPermission = async (userId, courseId, permission) => {
+    const permissions = await getTeacherPermissions(userId, courseId);
+    if (!permissions) return false;
+    // full_access grants all permissions
+    if (permissions.full_access) return true;
+    return !!permissions[permission];
+};
+
+/**
  * Check if user can broadcast (is admin OR owner OR student broadcasts allowed)
  * @param {Object} user - User object
  * @param {Object} course - Course object with user and allowStudentBroadcasts fields
@@ -48,7 +78,7 @@ const canBroadcast = (user, course, isEnrolled = false) => {
 
 /**
  * Middleware: Verify course ownership
- * Allows access if user is admin OR course owner
+ * Allows access if user is admin OR course owner OR teacher with full_access
  * Attaches course to req.course
  */
 const verifyCourseOwnership = asyncHandler(async (req, res, next) => {
@@ -66,13 +96,195 @@ const verifyCourseOwnership = asyncHandler(async (req, res, next) => {
         throw new Error('Course not found');
     }
 
-    if (!canManage(req.user, course.user)) {
-        res.status(403);
-        throw new Error('Not authorized to access this course');
+    const userId = req.user?.id || req.user?._id;
+
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
     }
 
-    req.course = course;
-    next();
+    // Check if teacher with full_access permission
+    const hasFullAccess = await hasTeacherPermission(userId, courseId, 'full_access');
+    if (hasFullAccess) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to access this course');
+});
+
+/**
+ * Middleware: Verify course content management permission
+ * Allows access if user is admin OR course owner OR teacher with manage_content
+ * Attaches course to req.course
+ */
+const verifyCourseContentPermission = asyncHandler(async (req, res, next) => {
+    const courseId = req.params.id || req.params.courseId;
+
+    if (!courseId) {
+        res.status(400);
+        throw new Error('Course ID is required');
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    const userId = req.user?.id || req.user?._id;
+
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
+    }
+
+    // Check if teacher with manage_content or full_access permission
+    const hasContentAccess = await hasTeacherPermission(userId, courseId, 'manage_content');
+    if (hasContentAccess) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to manage course content');
+});
+
+/**
+ * Middleware: Verify student management permission
+ * Allows access if user is admin OR course owner OR teacher with manage_students
+ * Attaches course to req.course
+ */
+const verifyStudentManagementPermission = asyncHandler(async (req, res, next) => {
+    const courseId = req.params.id || req.params.courseId;
+
+    if (!courseId) {
+        res.status(400);
+        throw new Error('Course ID is required');
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    const userId = req.user?.id || req.user?._id;
+
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
+    }
+
+    // Check if teacher with manage_students or full_access permission
+    const hasStudentAccess = await hasTeacherPermission(userId, courseId, 'manage_students');
+    if (hasStudentAccess) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to manage students');
+});
+
+/**
+ * Middleware: Verify teacher management permission
+ * Allows access if user is admin OR course owner OR teacher with manage_teachers
+ * Attaches course to req.course
+ */
+const verifyTeacherManagementPermission = asyncHandler(async (req, res, next) => {
+    const courseId = req.params.id || req.params.courseId;
+
+    if (!courseId) {
+        res.status(400);
+        throw new Error('Course ID is required');
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    const userId = req.user?.id || req.user?._id;
+
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
+    }
+
+    // Check if teacher with manage_teachers or full_access permission
+    const hasTeacherAccess = await hasTeacherPermission(userId, courseId, 'manage_teachers');
+    if (hasTeacherAccess) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to manage teachers');
+});
+
+/**
+ * Middleware: Verify any course access (owner or any teacher)
+ * Allows access if user is admin OR course owner OR any assigned teacher
+ * Attaches course to req.course
+ */
+const verifyCourseAccess = asyncHandler(async (req, res, next) => {
+    const courseId = req.params.id || req.params.courseId;
+
+    if (!courseId) {
+        res.status(400);
+        throw new Error('Course ID is required');
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    const userId = req.user?.id || req.user?._id;
+
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
+    }
+
+    // Check if any teacher
+    const permissions = await getTeacherPermissions(userId, courseId);
+    if (permissions) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        req.teacherPermissions = permissions;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to access this course');
 });
 
 /**
@@ -114,7 +326,7 @@ const verifyLectureOwnership = asyncHandler(async (req, res, next) => {
 
 /**
  * Middleware: Verify broadcast permission (via course)
- * Allows access if user is admin OR owner OR (student broadcasts allowed AND enrolled)
+ * Allows access if user is admin OR owner OR teacher OR (student broadcasts allowed AND enrolled)
  * Attaches course to req.course
  */
 const verifyBroadcastPermission = asyncHandler(async (req, res, next) => {
@@ -132,18 +344,38 @@ const verifyBroadcastPermission = asyncHandler(async (req, res, next) => {
         throw new Error('Course not found');
     }
 
-    // Check if user is enrolled (for student broadcast permission)
-    const Progress = require('../models/Progress');
     const userId = req.user?.id || req.user?._id;
-    const isEnrolled = await Progress.exists({ student: userId, course: courseId });
 
-    if (!canBroadcast(req.user, course, !!isEnrolled)) {
-        res.status(403);
-        throw new Error('Not authorized to broadcast in this course');
+    // Check if admin or owner
+    if (canManage(req.user, course.user)) {
+        req.course = course;
+        req.isOwner = true;
+        return next();
     }
 
-    req.course = course;
-    next();
+    // Check if teacher (any assigned teacher can view/create broadcasts)
+    const teacherPermissions = await getTeacherPermissions(userId, courseId);
+    if (teacherPermissions) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = true;
+        req.teacherPermissions = teacherPermissions;
+        return next();
+    }
+
+    // Check if user is enrolled (for student broadcast permission)
+    const Progress = require('../models/Progress');
+    const isEnrolled = await Progress.exists({ student: userId, course: courseId });
+
+    if (course.allowStudentBroadcasts && isEnrolled) {
+        req.course = course;
+        req.isOwner = false;
+        req.isTeacher = false;
+        return next();
+    }
+
+    res.status(403);
+    throw new Error('Not authorized to broadcast in this course');
 });
 
 /**
@@ -192,7 +424,13 @@ module.exports = {
     isOwner,
     canManage,
     canBroadcast,
+    getTeacherPermissions,
+    hasTeacherPermission,
     verifyCourseOwnership,
+    verifyCourseContentPermission,
+    verifyStudentManagementPermission,
+    verifyTeacherManagementPermission,
+    verifyCourseAccess,
     verifyLectureOwnership,
     verifyBroadcastPermission,
     verifyBroadcastOwnership

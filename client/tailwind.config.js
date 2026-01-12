@@ -7,6 +7,9 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px', // Extra small breakpoint for mobile
+      },
       colors: {
         primary: '#2563EB', // Soft Blue
         background: '#F8FAFC', // Off White
