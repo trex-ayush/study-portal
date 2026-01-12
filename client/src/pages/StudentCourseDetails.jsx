@@ -1,14 +1,39 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useContext } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaPlayCircle, FaBook, FaCheckCircle, FaRegCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaPlayCircle, FaBook, FaCheckCircle, FaChevronDown, FaChevronUp, FaBullhorn } from 'react-icons/fa';
+import BroadcastList from '../components/BroadcastList';
+import AuthContext from '../context/AuthContext';
 
 const StudentCourseDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = searchParams.get('tab') || 'content';
+    const { user } = useContext(AuthContext);
+
     const [course, setCourse] = useState(null);
     const [progressMap, setProgressMap] = useState({});
-    const [expandedSections, setExpandedSections] = useState({}); // New State
+    const [expandedSections, setExpandedSections] = useState({});
+
+    // Broadcast State
+    const [broadcasts, setBroadcasts] = useState([]);
+    const [broadcastsLoaded, setBroadcastsLoaded] = useState(false);
+    const [canBroadcast, setCanBroadcast] = useState(false);
+    const [broadcastPage, setBroadcastPage] = useState(1);
+    const [broadcastPagination, setBroadcastPagination] = useState({ page: 1, pages: 1, total: 0 });
+    const [unreadBroadcastCount, setUnreadBroadcastCount] = useState(0);
+
+    // Tab definitions
+    const tabs = [
+        { id: 'content', label: 'Content', icon: FaBook },
+        { id: 'announcements', label: 'Announcements', icon: FaBullhorn },
+    ];
+
+    // Tab change handler
+    const handleTabChange = (tabId) => {
+        setSearchParams({ tab: tabId });
+    };
 
     // Toggle Section Logic
     const toggleSection = (sectionId) => {
@@ -28,7 +53,7 @@ const StudentCourseDetails = () => {
         };
     }, [course]);
 
-    // Fetch Course & Progress
+    // Fetch Course & Progress (initial load - only essential data)
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -58,12 +83,72 @@ const StudentCourseDetails = () => {
                     setProgressMap(map);
                 }
 
+                // 3. Get unread broadcast count
+                const unreadRes = await api.get(`/broadcasts/course/${id}/unread-count`);
+                setUnreadBroadcastCount(unreadRes.data.unreadCount || 0);
             } catch (err) {
                 console.error("Failed to fetch data", err);
             }
         };
         fetchData();
     }, [id]);
+
+    // Lazy load broadcasts when announcements tab is activated
+    useEffect(() => {
+        if (activeTab === 'announcements' && id) {
+            if (!broadcastsLoaded) {
+                fetchBroadcasts();
+                fetchBroadcastPermission();
+            }
+            // Mark broadcasts as read when viewing the tab
+            if (unreadBroadcastCount > 0) {
+                markBroadcastsAsRead();
+            }
+        }
+    }, [activeTab, broadcastsLoaded, id, unreadBroadcastCount]);
+
+    // Fetch broadcast permission
+    const fetchBroadcastPermission = async () => {
+        try {
+            const permRes = await api.get(`/broadcasts/course/${id}/can-broadcast`);
+            setCanBroadcast(permRes.data.canBroadcast);
+        } catch (err) {
+            console.error("Failed to check broadcast permission", err);
+        }
+    };
+
+    // Fetch broadcasts
+    const fetchBroadcasts = async (page = 1) => {
+        try {
+            const res = await api.get(`/broadcasts/course/${id}/active?page=${page}&limit=5`);
+            setBroadcasts(res.data.broadcasts);
+            setBroadcastPagination(res.data.pagination);
+            setBroadcastPage(page);
+            setBroadcastsLoaded(true);
+        } catch (err) {
+            console.error("Failed to fetch broadcasts", err);
+        }
+    };
+
+    // Fetch unread broadcast count
+    const fetchUnreadCount = async () => {
+        try {
+            const res = await api.get(`/broadcasts/course/${id}/unread-count`);
+            setUnreadBroadcastCount(res.data.unreadCount || 0);
+        } catch (err) {
+            console.error("Failed to fetch unread count", err);
+        }
+    };
+
+    // Mark broadcasts as read
+    const markBroadcastsAsRead = async () => {
+        try {
+            await api.post(`/broadcasts/course/${id}/mark-read`);
+            setUnreadBroadcastCount(0);
+        } catch (err) {
+            console.error("Failed to mark broadcasts as read", err);
+        }
+    };
 
     const getProgressStats = () => {
         if (!course) return { completed: 0, total: 0, percent: 0 };
@@ -80,206 +165,264 @@ const StudentCourseDetails = () => {
         return { completed, total: totalLectures, percent };
     };
 
-    if (!course) return <div className="p-8 text-center text-slate-500 font-medium animate-pulse">Loading Course...</div>;
+    // Render Content Tab (Curriculum + Progress)
+    const renderContentTab = () => {
+        const stats = getProgressStats();
 
-    const stats = getProgressStats();
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LEFT COLUMN: Course Curriculum (2/3) */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-4">
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Curriculum</h2>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{course.sections.length} Sections</span>
+                    </div>
+
+                    <div className="space-y-6">
+                        {course.sections && course.sections.length > 0 ? (
+                            course.sections.map((section) => {
+                                // Section Progress Logic
+                                const totalSecLectures = section.lectures ? section.lectures.length : 0;
+                                const completionLabel = course.completedStatus || 'Completed';
+                                const completedSecLectures = section.lectures ? section.lectures.filter(l => progressMap[l._id]?.status === completionLabel).length : 0;
+                                const secPercent = totalSecLectures > 0 ? Math.round((completedSecLectures / totalSecLectures) * 100) : 0;
+                                const isExpanded = expandedSections[section._id];
+
+                                return (
+                                    <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
+
+                                        {/* Section Header (Accordion) */}
+                                        <div
+                                            onClick={() => toggleSection(section._id)}
+                                            className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/80 flex flex-col gap-3"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                                                    <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
+                                                    {section.title}
+                                                </h3>
+                                                {isExpanded ?
+                                                    <FaChevronUp className="text-slate-400 text-xs" /> :
+                                                    <FaChevronDown className="text-slate-400 text-xs" />
+                                                }
+                                            </div>
+
+                                            {/* Section Progress Bar */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-1.5 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-green-500 rounded-full transition-all duration-500"
+                                                        style={{ width: `${secPercent}%` }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 min-w-[3rem] text-right">
+                                                    {completedSecLectures} / {totalSecLectures}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Lectures List (Collapsible) */}
+                                        {isExpanded && (
+                                            <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
+                                                {section.lectures && section.lectures.length > 0 ? (
+                                                    section.lectures.map((lec) => {
+                                                        const progress = progressMap[lec._id] || { status: 'Not Started' };
+                                                        const status = progress.status;
+                                                        const completedAt = progress.completedAt ? new Date(progress.completedAt) : null;
+                                                        const dueDate = lec.dueDate ? new Date(lec.dueDate) : null;
+
+                                                        const completionLabel = course.completedStatus || 'Completed';
+                                                        const isLate = status === completionLabel && completedAt && dueDate && completedAt > dueDate;
+
+                                                        return (
+                                                            <div
+                                                                key={lec._id}
+                                                                onClick={() => navigate(`/course/${id}/lecture/${lec._id}`)}
+                                                                className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between cursor-pointer"
+                                                            >
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="shrink-0">
+                                                                        {(status && status !== 'Not Started') ? (
+                                                                            <div style={{ color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#10b981' }}>
+                                                                                {status === completionLabel ?
+                                                                                    <FaCheckCircle size={16} /> :
+                                                                                    <FaPlayCircle size={16} />
+                                                                                }
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm transition-colors">
+                                                                                {lec.number}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="font-medium text-sm text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                                                                            {lec.title}
+                                                                        </span>
+                                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                                            {lec.dueDate ? (
+                                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isLate
+                                                                                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                                                                                    {isLate ? 'Late Submission: ' : 'Due: '}
+                                                                                    {new Date(lec.dueDate).toLocaleDateString()}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">No Due Date</span>
+                                                                            )}
+
+                                                                            {/* Status Chip */}
+                                                                            <span
+                                                                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors`}
+                                                                                style={{
+                                                                                    backgroundColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}20`,
+                                                                                    borderColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}40`,
+                                                                                    color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'
+                                                                                }}
+                                                                            >
+                                                                                {status}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+
+                                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-2 py-1 rounded-md">
+                                                                        Watch
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="p-6 text-center">
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures available.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-12">
+                                <p className="text-slate-500 dark:text-slate-400">Course content is being prepared.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN: Progress (1/3) */}
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 transition-colors">
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-6">Your Progress</h2>
+
+                        <div className="space-y-4">
+                            <div className="flex items-end justify-between">
+                                <span className="text-3xl font-bold text-slate-900 dark:text-white">{stats.percent}%</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">{stats.completed}/{stats.total} Lectures</span>
+                            </div>
+                            <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                                <div
+                                    className="bg-slate-900 dark:bg-blue-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                                    style={{ width: `${stats.percent}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed pt-2">
+                                Keep it up! You are making great progress through the course material.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Render Announcements Tab (using shared component)
+    const renderAnnouncementsTab = () => {
+        if (!broadcastsLoaded) {
+            return (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white"></div>
+                </div>
+            );
+        }
+
+        return (
+            <BroadcastList
+                courseId={id}
+                broadcasts={broadcasts}
+                pagination={broadcastPagination}
+                currentPage={broadcastPage}
+                onPageChange={fetchBroadcasts}
+                onRefresh={() => fetchBroadcasts(broadcastPage)}
+                canBroadcast={canBroadcast}
+                isOwner={false}
+                currentUserId={user?._id}
+            />
+        );
+    };
+
+    if (!course) return <div className="p-8 text-center text-slate-500 font-medium animate-pulse">Loading Course...</div>;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-gray-100 pb-12 transition-colors duration-300">
 
-            {/* Header */}
+            {/* Header - Compact on mobile */}
             <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-16 z-30 transition-colors duration-300 shadow-sm">
-                <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">{course.title}</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed max-w-3xl">{course.description}</p>
+                <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight truncate">{course.title}</h1>
+                        <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{course.description}</p>
                     </div>
-                    {/* Resume Button */}
-                    <div className="shrink-0 self-start md:self-center">
-                        <button
-                            onClick={() => {
-                                // Logic to find first uncompleted lecture, or just first lecture
-                                if (course.sections.length > 0 && course.sections[0].lectures.length > 0) {
-                                    navigate(`/course/${id}/lecture/${course.sections[0].lectures[0]._id}`);
-                                }
-                            }}
-                            className="flex items-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-full text-sm font-bold shadow-lg hover:shadow-xl hover:bg-slate-800 dark:hover:bg-white/90 transition-all transform hover:-translate-y-0.5"
-                        >
-                            <FaPlayCircle /> Start Learning
-                        </button>
+                    <button
+                        onClick={() => {
+                            if (course.sections.length > 0 && course.sections[0].lectures.length > 0) {
+                                navigate(`/course/${id}/lecture/${course.sections[0].lectures[0]._id}`);
+                            }
+                        }}
+                        className="shrink-0 flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold shadow hover:opacity-90 transition-all"
+                    >
+                        <FaPlayCircle size={12} /> <span className="hidden xs:inline">Start</span>
+                    </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="container mx-auto px-3 sm:px-4">
+                    <div className="flex gap-0.5 border-t border-gray-100 dark:border-slate-800">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            const showBadge = tab.id === 'announcements' && unreadBroadcastCount > 0;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => handleTabChange(tab.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm font-medium transition-all border-b-2 -mb-[1px] ${
+                                        isActive
+                                            ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
+                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    <Icon size={12} />
+                                    {tab.label}
+                                    {showBadge && (
+                                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                            {unreadBroadcastCount > 99 ? '99+' : unreadBroadcastCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    {/* LEFT COLUMN: Course Curriculum (2/3) */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-4">
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Curriculum</h2>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{course.sections.length} Sections</span>
-                        </div>
-
-                        <div className="space-y-6">
-                            {course.sections && course.sections.length > 0 ? (
-                                course.sections.map((section) => {
-                                    // Section Progress Logic
-                                    const totalSecLectures = section.lectures ? section.lectures.length : 0;
-                                    const completionLabel = course.completedStatus || 'Completed';
-                                    const completedSecLectures = section.lectures ? section.lectures.filter(l => progressMap[l._id]?.status === completionLabel).length : 0;
-                                    const secPercent = totalSecLectures > 0 ? Math.round((completedSecLectures / totalSecLectures) * 100) : 0;
-                                    const isExpanded = expandedSections[section._id];
-
-                                    return (
-                                        <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
-
-                                            {/* Section Header (Accordion) */}
-                                            <div
-                                                onClick={() => toggleSection(section._id)}
-                                                className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/80 flex flex-col gap-3"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2">
-                                                        <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
-                                                        {section.title}
-                                                    </h3>
-                                                    {isExpanded ?
-                                                        <FaChevronUp className="text-slate-400 text-xs" /> :
-                                                        <FaChevronDown className="text-slate-400 text-xs" />
-                                                    }
-                                                </div>
-
-                                                {/* Section Progress Bar */}
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-1.5 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-green-500 rounded-full transition-all duration-500"
-                                                            style={{ width: `${secPercent}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 min-w-[3rem] text-right">
-                                                        {completedSecLectures} / {totalSecLectures}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Lectures List (Collapsible) */}
-                                            {isExpanded && (
-                                                <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
-                                                    {section.lectures && section.lectures.length > 0 ? (
-                                                        section.lectures.map((lec) => {
-                                                            const progress = progressMap[lec._id] || { status: 'Not Started' };
-                                                            const status = progress.status;
-                                                            const completedAt = progress.completedAt ? new Date(progress.completedAt) : null;
-                                                            const dueDate = lec.dueDate ? new Date(lec.dueDate) : null;
-
-                                                            const completionLabel = course.completedStatus || 'Completed';
-                                                            const isLate = status === completionLabel && completedAt && dueDate && completedAt > dueDate;
-
-                                                            return (
-                                                                <div
-                                                                    key={lec._id}
-                                                                    onClick={() => navigate(`/course/${id}/lecture/${lec._id}`)}
-                                                                    className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between cursor-pointer"
-                                                                >
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="shrink-0">
-                                                                            {(status && status !== 'Not Started') ? (
-                                                                                <div style={{ color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#10b981' }}>
-                                                                                    {status === completionLabel ?
-                                                                                        <FaCheckCircle size={16} /> :
-                                                                                        <FaPlayCircle size={16} />
-                                                                                    }
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm transition-colors">
-                                                                                    {lec.number}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <div>
-                                                                            <span className="font-medium text-sm text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
-                                                                                {lec.title}
-                                                                            </span>
-                                                                            <div className="flex items-center gap-3 mt-1.5">
-                                                                                {lec.dueDate ? (
-                                                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isLate
-                                                                                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                                                                        {isLate ? 'Late Submission: ' : 'Due: '}
-                                                                                        {new Date(lec.dueDate).toLocaleDateString()}
-                                                                                    </span>
-                                                                                ) : (
-                                                                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">No Due Date</span>
-                                                                                )}
-
-                                                                                {/* Status Chip */}
-                                                                                <span
-                                                                                    className={`text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors`}
-                                                                                    style={{
-                                                                                        backgroundColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}20`,
-                                                                                        borderColor: `${course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'}40`,
-                                                                                        color: course?.lectureStatuses?.find(s => s.label === status)?.color || '#64748b'
-                                                                                    }}
-                                                                                >
-                                                                                    {status}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-
-                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-2 py-1 rounded-md">
-                                                                            Watch
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <div className="p-6 text-center">
-                                                            <p className="text-xs text-slate-400 dark:text-slate-500 italic">No lectures available.</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                            ) : (
-                                <div className="text-center py-12">
-                                    <p className="text-slate-500 dark:text-slate-400">Course content is being prepared.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: Progress (1/3) */}
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 sticky top-28 transition-colors">
-                            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-6">Your Progress</h2>
-
-                            <div className="space-y-4">
-                                <div className="flex items-end justify-between">
-                                    <span className="text-3xl font-bold text-slate-900 dark:text-white">{stats.percent}%</span>
-                                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">{stats.completed}/{stats.total} Lectures</span>
-                                </div>
-                                <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                    <div
-                                        className="bg-slate-900 dark:bg-blue-600 h-2 rounded-full transition-all duration-1000 ease-out"
-                                        style={{ width: `${stats.percent}%` }}
-                                    ></div>
-                                </div>
-                                <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed pt-2">
-                                    Keep it up! You are making great progress through the course material.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
+            {/* Tab Content */}
+            <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+                {activeTab === 'content' && renderContentTab()}
+                {activeTab === 'announcements' && renderAnnouncementsTab()}
             </div>
         </div>
     );

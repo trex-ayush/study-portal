@@ -24,6 +24,7 @@ app.use(activityLogger);
 
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
+app.use('/api/broadcasts', require('./routes/broadcastRoutes'));
 app.use('/api/activities', require('./routes/activityRoutes'));
 
 // Error handler middleware - need to create this file too

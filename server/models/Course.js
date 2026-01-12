@@ -34,6 +34,10 @@ const courseSchema = new mongoose.Schema({
         required: true,
         ref: 'User'
     },
+    allowStudentBroadcasts: {
+        type: Boolean,
+        default: false
+    },
     sections: [{
         title: { type: String, required: true },
         isPublic: { type: Boolean, default: false },
