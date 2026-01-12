@@ -4,10 +4,11 @@ const Lecture = require('../models/Lecture');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 const Activity = require('../models/Activity');
+const { canManage } = require('../middleware/ownershipMiddleware');
 
 // @desc    Create new course
 // @route   POST /api/courses
-// @access  Private/Admin
+// @access  Private (any authenticated user)
 const createCourse = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
 
@@ -34,15 +35,12 @@ const createCourse = asyncHandler(async (req, res) => {
 
 // @desc    Update course
 // @route   PUT /api/courses/:id
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const updateCourse = asyncHandler(async (req, res) => {
     const { title, description, status, lectureStatuses } = req.body;
-    const course = await Course.findById(req.params.id);
 
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     course.title = title || course.title;
     course.description = description || course.description;
@@ -87,8 +85,8 @@ const getCourse = asyncHandler(async (req, res) => {
         ];
     }
 
-    // Filter hidden content for non-admins
-    if (req.user.role !== 'admin') {
+    // Filter hidden content for non-owners (admin or course owner can see all)
+    if (!canManage(req.user, course.user)) {
         course.sections = course.sections
             .filter(section => section.isPublic)
             .map(section => ({
@@ -102,15 +100,12 @@ const getCourse = asyncHandler(async (req, res) => {
 
 // @desc    Add section to course
 // @route   POST /api/courses/:id/sections
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const addSection = asyncHandler(async (req, res) => {
     const { title } = req.body;
-    const course = await Course.findById(req.params.id);
 
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     course.sections.push({ title, isPublic: req.body.isPublic, lectures: [] });
     await course.save();
@@ -120,15 +115,12 @@ const addSection = asyncHandler(async (req, res) => {
 
 // @desc    Update section
 // @route   PUT /api/courses/:id/sections/:sectionId
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const updateSection = asyncHandler(async (req, res) => {
     const { title } = req.body;
-    const course = await Course.findById(req.params.id);
 
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     const section = course.sections.id(req.params.sectionId);
     if (!section) {
@@ -147,14 +139,10 @@ const updateSection = asyncHandler(async (req, res) => {
 
 // @desc    Delete section
 // @route   DELETE /api/courses/:id/sections/:sectionId
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const deleteSection = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     const section = course.sections.id(req.params.sectionId);
     if (!section) {
@@ -167,8 +155,7 @@ const deleteSection = asyncHandler(async (req, res) => {
         await Lecture.deleteMany({ _id: { $in: section.lectures } });
     }
 
-    // Remove section from course (using pull or just modify array)
-    // Mongoose Subdocs:
+    // Remove section from course
     course.sections.pull(req.params.sectionId);
     await course.save();
 
@@ -177,16 +164,13 @@ const deleteSection = asyncHandler(async (req, res) => {
 
 // @desc    Add lecture to course section
 // @route   POST /api/courses/:id/sections/:sectionId/lectures
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const addLectureToSection = asyncHandler(async (req, res) => {
     const { title, number, resourceUrl, description, dueDate } = req.body;
     const { id, sectionId } = req.params;
 
-    const course = await Course.findById(id);
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     const section = course.sections.id(sectionId);
     if (!section) {
@@ -202,7 +186,6 @@ const addLectureToSection = asyncHandler(async (req, res) => {
         resourceUrl,
         description,
         dueDate,
-        dueDate,
         status: req.body.status || 'Pending',
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : false
     });
@@ -216,20 +199,16 @@ const addLectureToSection = asyncHandler(async (req, res) => {
 
 // @desc    Update lecture
 // @route   PUT /api/courses/lectures/:id
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const updateLecture = asyncHandler(async (req, res) => {
     const { title, resourceUrl, description, dueDate } = req.body;
 
-    const lecture = await Lecture.findById(req.params.id);
-    if (!lecture) {
-        res.status(404);
-        throw new Error('Lecture not found');
-    }
+    // Lecture and course are attached by verifyLectureOwnership middleware
+    const lecture = req.lecture;
 
     lecture.title = title || lecture.title;
     lecture.resourceUrl = resourceUrl || lecture.resourceUrl;
     lecture.description = description || lecture.description;
-    lecture.dueDate = dueDate || lecture.dueDate;
     lecture.dueDate = dueDate || lecture.dueDate;
     lecture.status = req.body.status || lecture.status;
     if (req.body.isPublic !== undefined) {
@@ -242,45 +221,30 @@ const updateLecture = asyncHandler(async (req, res) => {
 
 // @desc    Delete lecture
 // @route   DELETE /api/courses/lectures/:id
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const deleteLecture = asyncHandler(async (req, res) => {
-    const lecture = await Lecture.findById(req.params.id);
-    if (!lecture) {
-        res.status(404);
-        throw new Error('Lecture not found');
-    }
+    // Lecture and course are attached by verifyLectureOwnership middleware
+    const lecture = req.lecture;
+    const course = req.course;
 
-    // Remove from Course/Section
-    // We need to find the course and section that contains this lecture
-    // Since Lecture has `course` ref, we can find it.
-    // However, Section is inside Course.sections array.
-
-    const course = await Course.findById(lecture.course);
-    if (course) {
-        // Find which section has this lecture
-        course.sections.forEach(section => {
-            const idx = section.lectures.indexOf(lecture._id);
-            if (idx > -1) {
-                section.lectures.splice(idx, 1);
-            }
-        });
-        await course.save();
-    }
+    // Find which section has this lecture and remove it
+    course.sections.forEach(section => {
+        const idx = section.lectures.indexOf(lecture._id);
+        if (idx > -1) {
+            section.lectures.splice(idx, 1);
+        }
+    });
+    await course.save();
 
     // Delete the lecture document
     await lecture.deleteOne();
-
-    // Optional: Clean up Progress/Activity if strictly required, 
-    // but often keeping logs is fine or handled by separate cleanup jobs.
-    // For now, let's leave logs as 'orphaned' history or delete them.
-    // User didn't specify, so keeping it simple.
 
     res.status(200).json({ id: req.params.id });
 });
 
 // @desc    Enroll student in course
 // @route   POST /api/courses/:id/enroll
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const enrollStudent = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const courseId = req.params.id;
@@ -291,11 +255,8 @@ const enrollStudent = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-        res.status(404);
-        throw new Error('Course not found');
-    }
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
 
     const progressExists = await Progress.findOne({ student: user._id, course: courseId });
     if (progressExists) {
@@ -557,7 +518,7 @@ const getLectureComments = asyncHandler(async (req, res) => {
 
 // @desc    Get student activity for a course
 // @route   GET /api/courses/:id/activity/:studentId
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const getStudentActivity = asyncHandler(async (req, res) => {
     const { id, studentId } = req.params;
     const activities = await Activity.find({ course: id, student: studentId })
@@ -566,12 +527,9 @@ const getStudentActivity = asyncHandler(async (req, res) => {
     res.status(200).json(activities);
 });
 
-// @desc    Get all progresses for a course (Admin)
+// @desc    Get all progresses for a course
 // @route   GET /api/courses/:id/progresses
-// @access  Private/Admin
-// @desc    Get all progresses for a course (Admin)
-// @route   GET /api/courses/:id/progresses
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const getCourseProgresses = asyncHandler(async (req, res) => {
     const { keyword, page, limit } = req.query;
 
@@ -706,7 +664,7 @@ const getUserStats = asyncHandler(async (req, res) => {
 
 // @desc    Remove student from course
 // @route   DELETE /api/courses/:id/enroll/:studentId
-// @access  Private/Admin
+// @access  Private (Admin or Course Owner)
 const removeStudent = asyncHandler(async (req, res) => {
     const { id, studentId } = req.params;
 
@@ -720,11 +678,51 @@ const removeStudent = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Student removed' });
 });
 
+// @desc    Get courses created by current user
+// @route   GET /api/courses/my/created
+// @access  Private
+const getCreatedCourses = asyncHandler(async (req, res) => {
+    const courses = await Course.find({ user: req.user.id })
+        .populate({
+            path: 'sections.lectures',
+            model: 'Lecture'
+        })
+        .sort({ createdAt: -1 });
+
+    res.status(200).json(courses);
+});
+
+// @desc    Delete course
+// @route   DELETE /api/courses/:id
+// @access  Private (Admin or Course Owner)
+const deleteCourse = asyncHandler(async (req, res) => {
+    // Course is attached by verifyCourseOwnership middleware
+    const course = req.course;
+
+    // Delete all lectures in all sections
+    for (const section of course.sections) {
+        if (section.lectures && section.lectures.length > 0) {
+            await Lecture.deleteMany({ _id: { $in: section.lectures } });
+        }
+    }
+
+    // Delete all progress records for this course
+    await Progress.deleteMany({ course: course._id });
+
+    // Delete all activity records for this course
+    await Activity.deleteMany({ course: course._id });
+
+    // Delete the course
+    await course.deleteOne();
+
+    res.status(200).json({ id: req.params.id, message: 'Course deleted successfully' });
+});
+
 module.exports = {
     createCourse,
     updateCourse,
+    deleteCourse,
     getCourses,
-    getCourse,
     getCourse,
     addSection,
     updateSection,
@@ -732,6 +730,7 @@ module.exports = {
     addLectureToSection,
     enrollStudent,
     getEnrolledCourses,
+    getCreatedCourses,
     updateLectureProgress,
     getStudentActivity,
     getCourseProgresses,

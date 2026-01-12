@@ -1,0 +1,104 @@
+const asyncHandler = require('express-async-handler');
+const Course = require('../models/Course');
+const Lecture = require('../models/Lecture');
+
+/**
+ * Check if user is admin
+ * @param {Object} user - User object from request
+ * @returns {boolean}
+ */
+const isAdmin = (user) => user && user.role === 'admin';
+
+/**
+ * Check if user owns the resource
+ * @param {string} userId - Current user's ID
+ * @param {string} ownerId - Resource owner's ID
+ * @returns {boolean}
+ */
+const isOwner = (userId, ownerId) => {
+    return userId && ownerId && userId.toString() === ownerId.toString();
+};
+
+/**
+ * Check if user can manage resource (is admin OR owner)
+ * @param {Object} user - User object
+ * @param {string} ownerId - Resource owner's ID
+ * @returns {boolean}
+ */
+const canManage = (user, ownerId) => {
+    return isAdmin(user) || isOwner(user?.id || user?._id, ownerId);
+};
+
+/**
+ * Middleware: Verify course ownership
+ * Allows access if user is admin OR course owner
+ * Attaches course to req.course
+ */
+const verifyCourseOwnership = asyncHandler(async (req, res, next) => {
+    const courseId = req.params.id || req.params.courseId;
+
+    if (!courseId) {
+        res.status(400);
+        throw new Error('Course ID is required');
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    if (!canManage(req.user, course.user)) {
+        res.status(403);
+        throw new Error('Not authorized to access this course');
+    }
+
+    req.course = course;
+    next();
+});
+
+/**
+ * Middleware: Verify lecture ownership (via course)
+ * Allows access if user is admin OR owns the course containing the lecture
+ * Attaches lecture and course to req
+ */
+const verifyLectureOwnership = asyncHandler(async (req, res, next) => {
+    const lectureId = req.params.id || req.params.lectureId;
+
+    if (!lectureId) {
+        res.status(400);
+        throw new Error('Lecture ID is required');
+    }
+
+    const lecture = await Lecture.findById(lectureId);
+
+    if (!lecture) {
+        res.status(404);
+        throw new Error('Lecture not found');
+    }
+
+    const course = await Course.findById(lecture.course);
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    if (!canManage(req.user, course.user)) {
+        res.status(403);
+        throw new Error('Not authorized to access this lecture');
+    }
+
+    req.lecture = lecture;
+    req.course = course;
+    next();
+});
+
+module.exports = {
+    isAdmin,
+    isOwner,
+    canManage,
+    verifyCourseOwnership,
+    verifyLectureOwnership
+};

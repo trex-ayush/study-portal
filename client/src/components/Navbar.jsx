@@ -83,6 +83,14 @@ const Navbar = () => {
                                         My Profile
                                     </Link>
 
+                                    <Link
+                                        to="/?tab=created"
+                                        className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        My Courses
+                                    </Link>
+
                                     {user.role === 'admin' && (
                                         <>
                                             <Link
