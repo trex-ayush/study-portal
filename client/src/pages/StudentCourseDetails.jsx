@@ -169,16 +169,86 @@ const StudentCourseDetails = () => {
     const renderContentTab = () => {
         const stats = getProgressStats();
 
+        // Determine progress color based on percentage
+        const getProgressColor = () => {
+            if (stats.percent >= 80) return { bg: 'bg-green-500', text: 'text-green-600 dark:text-green-400', border: 'border-green-200 dark:border-green-900/30', light: 'bg-green-50 dark:bg-green-900/10' };
+            if (stats.percent >= 50) return { bg: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-900/30', light: 'bg-blue-50 dark:bg-blue-900/10' };
+            if (stats.percent >= 20) return { bg: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-900/30', light: 'bg-amber-50 dark:bg-amber-900/10' };
+            return { bg: 'bg-purple-500', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-900/30', light: 'bg-purple-50 dark:bg-purple-900/10' };
+        };
+
+        const getEncouragingMessage = () => {
+            if (stats.percent === 100) return "🎉 Course completed! Well done!";
+            if (stats.percent >= 80) return "Almost there! Keep pushing forward!";
+            if (stats.percent >= 50) return "Great job! You're halfway through!";
+            if (stats.percent >= 20) return "Nice start! Keep the momentum going!";
+            return "Let's begin your learning journey!";
+        };
+
+        const colors = getProgressColor();
+
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* LEFT COLUMN: Course Curriculum (2/3) */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-4">
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">Curriculum</h2>
+            <div className="space-y-3 sm:space-y-4">
+                {/* Progress Card - Compact and prominent */}
+                <div className={`bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 rounded-lg sm:rounded-xl border ${colors.border} p-3 sm:p-4 shadow-sm hover:shadow transition-all duration-200`}>
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        {/* Progress Circle - Smaller */}
+                        <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full ${colors.light} flex items-center justify-center shrink-0`}>
+                            <div className="text-center">
+                                <div className={`text-lg sm:text-xl font-bold ${colors.text}`}>{stats.percent}%</div>
+                            </div>
+                            {/* Circular progress indicator */}
+                            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="5"
+                                    className="text-gray-200 dark:text-slate-700"
+                                />
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="5"
+                                    strokeDasharray={`${stats.percent * 2.827} 283`}
+                                    strokeLinecap="round"
+                                    className={colors.text.replace('text-', 'stroke-')}
+                                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                                />
+                            </svg>
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
+                            <div>
+                                <h2 className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Your Progress</h2>
+                                <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">{stats.completed} of {stats.total} Lectures</p>
+                            </div>
+                            <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-1.5 sm:h-2 overflow-hidden">
+                                <div
+                                    className={`h-full ${colors.bg} rounded-full transition-all duration-500 ease-out`}
+                                    style={{ width: `${stats.percent}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                {getEncouragingMessage()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Curriculum Section */}
+                <div className="space-y-4 sm:space-y-6">
+                    <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-3 sm:pb-4">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Curriculum</h2>
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{course.sections.length} Sections</span>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                         {course.sections && course.sections.length > 0 ? (
                             course.sections.map((section) => {
                                 // Section Progress Logic
@@ -310,29 +380,6 @@ const StudentCourseDetails = () => {
                                 <p className="text-slate-500 dark:text-slate-400">Course content is being prepared.</p>
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* RIGHT COLUMN: Progress (1/3) */}
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 transition-colors">
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-6">Your Progress</h2>
-
-                        <div className="space-y-4">
-                            <div className="flex items-end justify-between">
-                                <span className="text-3xl font-bold text-slate-900 dark:text-white">{stats.percent}%</span>
-                                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">{stats.completed}/{stats.total} Lectures</span>
-                            </div>
-                            <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                <div
-                                    className="bg-slate-900 dark:bg-blue-600 h-2 rounded-full transition-all duration-1000 ease-out"
-                                    style={{ width: `${stats.percent}%` }}
-                                ></div>
-                            </div>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed pt-2">
-                                Keep it up! You are making great progress through the course material.
-                            </p>
-                        </div>
                     </div>
                 </div>
             </div>

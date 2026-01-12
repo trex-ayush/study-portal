@@ -84,6 +84,14 @@ const CourseManage = () => {
         try {
             const res = await api.get(`/courses/${id}`);
             setCourse(res.data);
+            // Initialize expanded sections - only first section expanded by default
+            if (res.data.sections && res.data.sections.length > 0) {
+                const initialExpanded = {};
+                res.data.sections.forEach((section, index) => {
+                    initialExpanded[section._id] = index === 0; // Only first section expanded
+                });
+                setExpandedSections(initialExpanded);
+            }
         } catch (err) {
             console.error("Failed to fetch course", err);
         }
@@ -274,7 +282,7 @@ const CourseManage = () => {
     const toggleSection = (sectionId) => {
         setExpandedSections(prev => ({
             ...prev,
-            [sectionId]: prev[sectionId] === undefined ? false : !prev[sectionId]
+            [sectionId]: !prev[sectionId]
         }));
     };
 
@@ -305,12 +313,12 @@ const CourseManage = () => {
 
     // Render Curriculum Tab Content
     const renderCurriculumTab = () => (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             {/* Sections Header & Add Form */}
-            <div className="flex items-end justify-between">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Course Curriculum</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Organize your course content into sections and lectures</p>
+            <div className="flex items-start sm:items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Course Curriculum</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">Organize your course content into sections and lectures</p>
                 </div>
                 <button
                     onClick={() => {
@@ -319,7 +327,7 @@ const CourseManage = () => {
                         setNewSectionIsPublic(true);
                         setIsSectionModalOpen(true);
                     }}
-                    className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
+                    className="bg-slate-900 dark:bg-blue-600 text-white px-3 sm:px-4 h-8 sm:h-9 rounded-md text-[10px] sm:text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
                 >
                     + Add Section
                 </button>
@@ -331,24 +339,24 @@ const CourseManage = () => {
                     course.sections.map((section) => (
                         <div key={section._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden group transition-colors duration-300">
                             <div
-                                className="bg-gray-50/50 dark:bg-slate-950/50 px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/50"
+                                className="bg-gray-50/50 dark:bg-slate-950/50 px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center gap-2 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/50"
                                 onClick={() => toggleSection(section._id)}
                             >
-                                <h3 className="font-semibold text-sm text-slate-800 dark:text-white flex items-center gap-2 select-none">
-                                    <div className={`transition-transform duration-200 ${expandedSections[section._id] !== false ? 'rotate-180' : ''}`}>
+                                <h3 className="font-semibold text-xs sm:text-sm text-slate-800 dark:text-white flex items-center gap-1.5 sm:gap-2 select-none min-w-0">
+                                    <div className={`transition-transform duration-200 shrink-0 ${expandedSections[section._id] ? 'rotate-180' : ''}`}>
                                         <FaChevronDown className="text-slate-400 text-xs" />
                                     </div>
-                                    <FaBook className="text-slate-300 dark:text-slate-600 text-xs" />
-                                    {section.title}
-                                    <span className="text-xs text-slate-400 font-normal ml-2">({section.lectures?.length || 0} lectures)</span>
+                                    <FaBook className="text-slate-300 dark:text-slate-600 text-xs shrink-0 hidden sm:block" />
+                                    <span className="truncate">{section.title}</span>
+                                    <span className="text-[10px] sm:text-xs text-slate-400 font-normal shrink-0">({section.lectures?.length || 0})</span>
                                 </h3>
-                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                                     <button
                                         onClick={() => handleToggleSectionVisibility(section._id, section.isPublic)}
-                                        className="p-1.5 transition-colors"
+                                        className="p-1 sm:p-1.5 transition-colors"
                                         title={section.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
                                     >
-                                        {section.isPublic ? <FaEye className="text-green-500" size={14} /> : <FaEyeSlash className="text-slate-400" size={14} />}
+                                        {section.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -357,19 +365,19 @@ const CourseManage = () => {
                                             setNewSectionIsPublic(section.isPublic);
                                             setIsSectionModalOpen(true);
                                         }}
-                                        className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        className="p-1 sm:p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                                         title="Edit Section"
                                     >
-                                        <FaEdit size={12} />
+                                        <FaEdit size={11} />
                                     </button>
                                     <button
                                         onClick={() => handleDeleteSection(section._id)}
-                                        className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                                        className="p-1 sm:p-1.5 text-slate-400 hover:text-red-500 transition-colors"
                                         title="Delete Section"
                                     >
-                                        <FaTrash size={12} />
+                                        <FaTrash size={11} />
                                     </button>
-                                    <div className="h-4 w-px bg-gray-200 dark:bg-slate-700 mx-1"></div>
+                                    <div className="h-4 w-px bg-gray-200 dark:bg-slate-700 mx-0.5 sm:mx-1 hidden xs:block"></div>
                                     <button
                                         onClick={() => {
                                             setActiveSectionId(section._id);
@@ -377,67 +385,67 @@ const CourseManage = () => {
                                             setNewLecture({ title: '', number: '', resourceUrl: '', description: '', dueDate: '', status: 'Pending', isPublic: true });
                                             setIsLectureModalOpen(true);
                                         }}
-                                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm"
+                                        className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full font-medium transition-colors bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-sm whitespace-nowrap"
                                     >
-                                        + Add Lecture
+                                        + <span className="hidden xs:inline">Add </span>Lecture
                                     </button>
                                 </div>
                             </div>
 
                             {/* Lectures List */}
-                            {expandedSections[section._id] !== false && (
+                            {expandedSections[section._id] && (
                                 <div className="divide-y divide-gray-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
                                     {section.lectures && section.lectures.length > 0 ? (
                                         section.lectures.map((lec) => (
-                                            <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors p-4 flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
+                                            <div key={lec._id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 shadow-sm shrink-0">
                                                         {lec.number}
                                                     </div>
-                                                    <div>
+                                                    <div className="min-w-0 flex-1">
                                                         <a
                                                             href={`/course/${id}/lecture/${lec._id}`}
-                                                            className="font-medium text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer"
+                                                            className="font-medium text-xs sm:text-sm text-slate-900 dark:text-white hover:underline decoration-slate-400 transition-all cursor-pointer line-clamp-1"
                                                         >
                                                             {lec.title}
                                                         </a>
-                                                        <div className="flex items-center gap-3 mt-0.5">
+                                                        <div className="flex items-center gap-2 sm:gap-3 mt-0.5 flex-wrap">
                                                             {lec.dueDate && (
-                                                                <span className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">
+                                                                <span className="text-[9px] sm:text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-1 sm:px-1.5 py-0.5 rounded font-medium">
                                                                     Due {new Date(lec.dueDate).toLocaleDateString()}
                                                                 </span>
                                                             )}
                                                             {lec.resourceUrl && (
-                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Resource Attached</span>
+                                                                <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 hidden xs:inline">Resource Attached</span>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center gap-1 sm:gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                                                     <button
                                                         onClick={() => handleToggleLectureVisibility(lec._id, lec.isPublic)}
-                                                        className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        className="p-1.5 sm:p-2 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
                                                         title={lec.isPublic ? "Public (Click to Hide)" : "Hidden (Click to Make Public)"}
                                                     >
-                                                        {lec.isPublic ? <FaEye className="text-green-500" size={12} /> : <FaEyeSlash className="text-slate-400" size={12} />}
+                                                        {lec.isPublic ? <FaEye className="text-green-500" size={11} /> : <FaEyeSlash className="text-slate-400" size={11} />}
                                                     </button>
                                                     <button
                                                         onClick={() => {
                                                             handleEditClick(lec, section._id);
                                                             setIsLectureModalOpen(true);
                                                         }}
-                                                        className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        className="p-1.5 sm:p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
                                                         title="Edit"
                                                     >
-                                                        <FaEdit size={12} />
+                                                        <FaEdit size={11} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteLecture(lec._id)}
-                                                        className="p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                                                        className="p-1.5 sm:p-2 text-red-300 dark:text-red-900/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
                                                         title="Delete"
                                                     >
-                                                        <FaTrash size={12} />
+                                                        <FaTrash size={11} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -466,29 +474,30 @@ const CourseManage = () => {
 
     // Render Students Tab Content
     const renderStudentsTab = () => (
-        <div className="space-y-6">
-            <div className="flex items-end justify-between">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Enrolled Students</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage students enrolled in this course</p>
+        <div className="space-y-4 sm:space-y-6">
+            {/* Header */}
+            <div className="flex items-start sm:items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Enrolled Students</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">Manage students enrolled in this course</p>
                 </div>
                 <button
                     onClick={() => navigate(`/admin/course/${id}/students`)}
-                    className="bg-slate-900 dark:bg-blue-600 text-white px-4 h-9 rounded-md text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors"
+                    className="bg-slate-900 dark:bg-blue-600 text-white px-3 sm:px-4 h-8 sm:h-9 rounded-md text-[10px] sm:text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
                 >
                     Manage Students
                 </button>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Total Enrolled</p>
-                    <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{enrolledStudents.length}</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
+                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Enrolled</p>
+                    <p className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mt-1 sm:mt-2">{enrolledStudents.length}</p>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Active Today</p>
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
+                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
+                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Active</p>
+                    <p className="text-xl sm:text-3xl font-bold text-green-600 dark:text-green-400 mt-1 sm:mt-2">
                         {enrolledStudents.filter(s => {
                             const lastActive = new Date(s.updatedAt);
                             const today = new Date();
@@ -496,9 +505,9 @@ const CourseManage = () => {
                         }).length}
                     </p>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Avg. Progress</p>
-                    <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
+                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Avg. Progress</p>
+                    <p className="text-xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1 sm:mt-2">
                         {enrolledStudents.length > 0
                             ? Math.round(enrolledStudents.reduce((acc, s) => {
                                 const total = course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 1;
@@ -514,53 +523,69 @@ const CourseManage = () => {
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden">
                 {enrolledStudents.length > 0 ? (
                     <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                        {enrolledStudents.slice(0, 10).map((progress) => (
-                            <div key={progress._id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center">
-                                        <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                                            {progress.student?.name?.charAt(0)?.toUpperCase() || '?'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-900 dark:text-white">{progress.student?.name || 'Unknown'}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">{progress.student?.email || ''}</p>
+                        {enrolledStudents.slice(0, 10).map((progress) => {
+                            const totalLectures = course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 0;
+                            const completedLectures = progress.completedLectures?.length || 0;
+                            const progressPercent = totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
+
+                            return (
+                                <div key={progress._id} className="px-3 sm:px-4 py-3 sm:py-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <div className="flex items-center gap-2 sm:gap-3">
+                                        {/* Avatar */}
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center shrink-0">
+                                            <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                                {progress.student?.name?.charAt(0)?.toUpperCase() || '?'}
+                                            </span>
+                                        </div>
+
+                                        {/* Info & Progress */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{progress.student?.name || 'Unknown'}</p>
+                                                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">{progress.student?.email || ''}</p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
+                                                        {progressPercent}%
+                                                    </p>
+                                                    <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500">
+                                                        {completedLectures}/{totalLectures}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {/* Progress Bar */}
+                                            <div className="mt-2 w-full h-1.5 sm:h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all ${
+                                                        progressPercent === 100 ? 'bg-green-500' :
+                                                        progressPercent >= 50 ? 'bg-blue-500' :
+                                                        progressPercent > 0 ? 'bg-amber-500' : 'bg-gray-300'
+                                                    }`}
+                                                    style={{ width: `${progressPercent}%` }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                                            {progress.completedLectures?.length || 0} / {course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 0}
-                                        </p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">Completed</p>
-                                    </div>
-                                    <div className="w-24 h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-green-500 rounded-full transition-all"
-                                            style={{
-                                                width: `${Math.round((progress.completedLectures?.length || 0) / (course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 1) * 100)}%`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
-                    <div className="text-center py-12">
-                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <FaUsers className="text-slate-300 dark:text-slate-600" />
+                    <div className="text-center py-8 sm:py-12">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <FaUsers className="text-slate-300 dark:text-slate-600 text-sm sm:text-base" />
                         </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">No students enrolled yet</p>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">No students enrolled yet</p>
                     </div>
                 )}
                 {enrolledStudents.length > 10 && (
-                    <div className="p-4 border-t border-gray-100 dark:border-slate-800 text-center">
+                    <div className="px-3 sm:px-4 py-3 border-t border-gray-100 dark:border-slate-800 text-center">
                         <button
                             onClick={() => navigate(`/admin/course/${id}/students`)}
-                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
                         >
-                            View all {enrolledStudents.length} students
+                            View all {enrolledStudents.length} students →
                         </button>
                     </div>
                 )}
@@ -617,23 +642,23 @@ const CourseManage = () => {
 
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-16 z-10 transition-colors duration-300">
-                <div className="container mx-auto px-4">
-                    <div className="h-16 flex items-center justify-between">
-                        <div className="min-w-0">
-                            <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate">{course.title}</h1>
+                <div className="container mx-auto px-3 sm:px-4">
+                    <div className="h-12 sm:h-16 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate">{course.title}</h1>
                         </div>
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex gap-1.5 sm:gap-2 shrink-0">
                             <button
                                 onClick={() => navigate(`/course/${id}`)}
-                                className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                                className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-colors"
                             >
-                                <FaEye className="text-slate-400" size={12} /> Preview
+                                <FaEye className="text-slate-400" size={10} /> <span className="hidden xs:inline">Preview</span><span className="xs:hidden">View</span>
                             </button>
                             <button
                                 onClick={() => navigate(`/admin/course/${id}/settings`)}
-                                className="flex items-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 transition-colors"
+                                className="flex items-center gap-1 sm:gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium hover:opacity-90 transition-colors"
                             >
-                                <FaCog size={12} /> Settings
+                                <FaCog size={10} /> <span className="hidden xs:inline">Settings</span>
                             </button>
                         </div>
                     </div>

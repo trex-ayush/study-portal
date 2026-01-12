@@ -26,7 +26,8 @@ const CourseView = () => {
 
     // State to toggle section accordion
     const [expandedSections, setExpandedSections] = useState({});
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar
+    const [isSidebarVisible, setIsSidebarVisible] = useState(false); // Desktop sidebar toggle - minimized by default
 
     // Navigation Helpers
     const getFlattenedLectures = () => {
@@ -256,8 +257,8 @@ const CourseView = () => {
             {/* Mobile Header */}
             <div className="lg:hidden bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 p-3 flex items-center justify-between z-20 sticky top-0">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/')} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-                        <FaArrowLeft />
+                    <button onClick={() => navigate(`/course/${id}`)} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
+                        <FaArrowLeft size={16} />
                     </button>
                     <h1 className="font-bold text-slate-900 dark:text-white truncate max-w-[200px] text-sm">{course?.title}</h1>
                 </div>
@@ -265,7 +266,7 @@ const CourseView = () => {
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     className="p-2 text-slate-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
-                    {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+                    {isSidebarOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
                 </button>
             </div>
 
@@ -278,15 +279,37 @@ const CourseView = () => {
 
                 {/* Sidebar (Sheet-like) */}
                 <div className={`
-                        absolute lg:static inset-y-0 left-0 z-40 w-[280px] lg:w-80 bg-white dark:bg-slate-900 lg:border-r border-gray-100 dark:border-slate-800 shadow-2xl lg:shadow-none
-                        transform transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) flex flex-col
-                        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                        absolute lg:static inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 lg:border-r border-gray-100 dark:border-slate-800 shadow-2xl lg:shadow-none
+                        transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) flex flex-col
+                        ${isSidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full lg:translate-x-0 w-[280px]'}
+                        ${!isSidebarVisible ? 'lg:w-16' : 'lg:w-80'}
                     `}>
-                    <div className="p-3 bg-white dark:bg-slate-900 sticky top-0 z-10 hidden lg:flex items-center gap-3 border-b border-gray-100 dark:border-slate-800">
-                        <button onClick={() => navigate('/')} className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
-                            <FaArrowLeft />
-                        </button>
-                        <h2 className="font-semibold text-slate-900 dark:text-white truncate text-sm" title={course.title}>{course.title}</h2>
+                    <div className={`p-3 bg-white dark:bg-slate-900 sticky top-0 z-10 hidden lg:flex items-center border-b border-gray-100 dark:border-slate-800 ${!isSidebarVisible ? 'justify-center' : 'justify-between'}`}>
+                        {isSidebarVisible ? (
+                            <>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => navigate(`/course/${id}`)} className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+                                        <FaArrowLeft />
+                                    </button>
+                                    <h2 className="font-semibold text-slate-900 dark:text-white truncate text-sm" title={course.title}>{course.title}</h2>
+                                </div>
+                                <button
+                                    onClick={() => setIsSidebarVisible(false)}
+                                    className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors p-1"
+                                    title="Minimize sidebar"
+                                >
+                                    <FaBars size={18} />
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => setIsSidebarVisible(true)}
+                                className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors p-1"
+                                title="Expand sidebar"
+                            >
+                                <FaBars size={18} />
+                            </button>
+                        )}
                     </div>
 
                     {/* Mobile Sidebar Header (Close button) */}
@@ -297,7 +320,7 @@ const CourseView = () => {
                         </button>
                     </div>
 
-                    <div className="px-1 py-1 space-y-0.5 flex-1 overflow-y-auto">
+                    <div className={`px-1 py-1 space-y-0.5 flex-1 overflow-y-auto ${!isSidebarVisible ? 'hidden' : ''}`}>
                         {course.sections && course.sections.map((section) => {
                             // Section Progress Logic
                             const totalSecLectures = section.lectures ? section.lectures.length : 0;
@@ -354,250 +377,302 @@ const CourseView = () => {
                             );
                         })}
                     </div>
+
+                    {/* Minimized Sidebar - Show lecture numbers only */}
+                    {!isSidebarVisible && (
+                        <div className="hidden lg:flex flex-col items-center gap-2 py-2 flex-1 overflow-y-auto">
+                            {course.sections && course.sections.map((section, sectionIndex) => {
+                                // Alternate colors: even sections = black, odd sections = white
+                                const isEvenSection = sectionIndex % 2 === 0;
+
+                                return (
+                                    <div key={section._id} className="w-full flex flex-col items-center">
+                                        {/* Horizontal separator between sections */}
+                                        {sectionIndex > 0 && (
+                                            <div className="w-full h-px bg-slate-300 dark:bg-slate-700 mb-2"></div>
+                                        )}
+
+                                        {/* Bordered Container for Section with Lectures */}
+                                        <div
+                                            className={`w-12 border-2 rounded-lg p-1 flex flex-col items-center gap-1 ${
+                                                isEvenSection
+                                                    ? 'border-slate-900 dark:border-white'
+                                                    : 'border-slate-300 dark:border-slate-700'
+                                            }`}
+                                            title={section.title}
+                                        >
+                                            {/* Lecture Numbers inside the bordered box */}
+                                            {section.lectures && section.lectures.map((lec) => {
+                                                const status = progressMap[lec._id]?.status || 'Not Started';
+                                                const isSelected = selectedLecture && selectedLecture._id === lec._id;
+                                                const completionLabel = course.completedStatus || 'Completed';
+                                                const isCompleted = status === completionLabel;
+
+                                                return (
+                                                    <button
+                                                        key={lec._id}
+                                                        onClick={() => handleSelectLecture(lec)}
+                                                        className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-bold transition-all ${
+                                                            isSelected
+                                                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
+                                                                : isCompleted
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                                        }`}
+                                                        title={`${lec.title} (${status})`}
+                                                    >
+                                                        {lec.number}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-950 transition-colors duration-300 w-full">
                     {selectedLecture ? (
-                        <div className="max-w-7xl mx-auto">
-                            {/* Video Player Container */}
-                            <div className="bg-black w-full max-w-4xl mx-auto aspect-video relative group shadow-2xl z-10 lg:rounded-lg lg:mt-4 overflow-hidden">
-                                {selectedLecture.resourceUrl ? (
-                                    selectedLecture.resourceUrl.includes('youtube') || selectedLecture.resourceUrl.includes('youtu.be') ? (
-                                        <iframe
-                                            src={selectedLecture.resourceUrl.replace('watch?v=', 'embed/').split('&')[0]}
-                                            className="w-full h-full"
-                                            frameBorder="0"
-                                            allowFullScreen
-                                            title="Video"
-                                        ></iframe>
-                                    ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-                                            <a href={selectedLecture.resourceUrl} target="_blank" rel="noreferrer" className="text-white hover:text-blue-400 flex flex-col items-center gap-3 transition-colors">
-                                                <FaPlayCircle size={64} />
-                                                <span className="text-lg font-medium">Open External Resource</span>
-                                            </a>
-                                        </div>
-                                    )
-                                ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-slate-500 flex-col">
-                                        <span className="text-6xl mb-4">📚</span>
-                                        <span className="font-medium">No Video Resource</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Video Controls (Next/Prev) */}
-                            <div className="max-w-7xl mx-auto px-6 py-2 flex justify-between items-center">
-                                <button
-                                    onClick={handlePrevLecture}
-                                    disabled={getFlattenedLectures().findIndex(l => l._id === selectedLecture._id) === 0}
-                                    className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-gray-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                                >
-                                    <FaStepBackward className="group-hover:-translate-x-0.5 transition-transform" />
-                                    <span>Previous</span>
-                                </button>
-
-                                <button
-                                    onClick={handleNextLecture}
-                                    disabled={getFlattenedLectures().findIndex(l => l._id === selectedLecture._id) === getFlattenedLectures().length - 1}
-                                    className="group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-white/5 hover:bg-slate-800 dark:hover:bg-slate-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-20 disabled:scale-100 disabled:cursor-not-allowed transition-all"
-                                >
-                                    <span>Next Lecture</span>
-                                    <FaStepForward className="group-hover:translate-x-0.5 transition-transform" />
-                                </button>
-                            </div>
-
-                            {/* Lecture Details & Comments Layout */}
-                            <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                                {/* Left Col: Details (2/3) */}
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="space-y-4 border-b border-gray-100 dark:border-slate-800 pb-6">
-                                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-3">
-                                                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{selectedLecture.title}</h1>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Lecture {selectedLecture.number}</p>
-                                                    {selectedLecture.resourceUrl && (
-                                                        <a
-                                                            href={selectedLecture.resourceUrl}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[11px] font-bold transition-all border border-blue-100 dark:border-blue-800/50 shadow-sm"
-                                                        >
-                                                            <FaPlayCircle className="text-blue-500" />
-                                                            <span>Open Original Video URL</span>
+                        <div className="w-full max-w-[1800px] mx-auto">
+                            {/* Top Section: Video + Notes (Side by Side on Desktop) */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-4 p-0 lg:p-4">
+                                {/* Video Player */}
+                                <div className="lg:col-span-2">
+                                    <div className="bg-black w-full" style={{ aspectRatio: '16/9', maxHeight: '65vh' }}>
+                                        <div className="w-full h-full relative group">
+                                            {selectedLecture.resourceUrl ? (
+                                                selectedLecture.resourceUrl.includes('youtube') || selectedLecture.resourceUrl.includes('youtu.be') ? (
+                                                    <iframe
+                                                        src={selectedLecture.resourceUrl.replace('watch?v=', 'embed/').split('&')[0]}
+                                                        className="w-full h-full"
+                                                        frameBorder="0"
+                                                        allowFullScreen
+                                                        title="Video"
+                                                    ></iframe>
+                                                ) : (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+                                                        <a href={selectedLecture.resourceUrl} target="_blank" rel="noreferrer" className="text-white hover:text-blue-400 flex flex-col items-center gap-3 transition-colors p-4">
+                                                            <FaPlayCircle className="text-5xl" />
+                                                            <span className="text-base font-medium text-center">Open External Resource</span>
                                                         </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Action Bar */}
-                                        <div className="flex items-center gap-4 pt-2">
-                                            <StatusSelector
-                                                status={currentProgress.status}
-                                                onChange={handleUpdateProgress}
-                                                disabled={!isEnrolled}
-                                                customStatuses={course?.lectureStatuses}
-                                            />
-
-                                            {selectedLecture.dueDate && (
-                                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400">
-                                                    <FaClock size={12} />
-                                                    <span>Due: {new Date(selectedLecture.dueDate).toLocaleDateString()}</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-600 dark:text-slate-300 leading-relaxed pt-2">
-                                            <p>{selectedLecture.description || <span className="italic text-slate-400">No description available.</span>}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Comments Section */}
-                                    <div className="space-y-4">
-                                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                                            {comments.length} Comments
-                                        </h3>
-
-                                        {/* Input */}
-                                        <form onSubmit={handleAddComment} className="flex gap-4 items-start mb-4">
-                                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400 uppercase shrink-0">
-                                                {user?.name?.charAt(0) || 'U'}
-                                            </div>
-                                            <div className="flex-1 flex gap-3 items-center border-b border-gray-200 dark:border-slate-700 pb-1">
-                                                <input
-                                                    type="text"
-                                                    className="flex-1 bg-transparent px-0 py-2 text-sm text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
-                                                    placeholder="Add a comment..."
-                                                    value={newComment}
-                                                    onChange={(e) => setNewComment(e.target.value)}
-                                                />
-                                                <button
-                                                    type="submit"
-                                                    disabled={!newComment.trim()}
-                                                    className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap shrink-0"
-                                                >
-                                                    Comment
-                                                </button>
-                                            </div>
-                                        </form>
-
-                                        {/* List */}
-                                        <div className="space-y-6">
-                                            {comments.length > 0 ? (
-                                                <>
-                                                    {comments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((comment) => (
-                                                        <div key={comment._id} className="flex gap-4 group">
-                                                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 uppercase">
-                                                                {(comment.user?.name || comment.student?.name || '?').charAt(0)}
-                                                            </div>
-                                                            <div className="flex-1 space-y-1">
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                                                                        {(comment.user?._id || comment.student?._id) === user?._id ? 'You' : (comment.user?.name || comment.student?.name || 'Unknown')}
-                                                                    </span>
-                                                                    <span className="text-xs text-slate-400 dark:text-slate-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                                                                </div>
-                                                                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{comment.details}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-
-                                                    {/* Pagination Controls */}
-                                                    {Math.ceil(comments.length / itemsPerPage) > 1 && (
-                                                        <div className="flex justify-start items-center gap-4 pt-4 mt-6">
-                                                            <button
-                                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                                disabled={currentPage === 1}
-                                                                className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
-                                                            >
-                                                                Previous
-                                                            </button>
-                                                            <span className="text-xs text-slate-400 dark:text-slate-500">
-                                                                Page {currentPage} of {Math.ceil(comments.length / itemsPerPage)}
-                                                            </span>
-                                                            <button
-                                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(comments.length / itemsPerPage)))}
-                                                                disabled={currentPage === Math.ceil(comments.length / itemsPerPage)}
-                                                                className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
-                                                            >
-                                                                Next
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </>
+                                                    </div>
+                                                )
                                             ) : (
-                                                <div className="py-6">
-                                                    <p className="text-sm text-slate-400 dark:text-slate-500 italic">No comments yet.</p>
+                                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-slate-500 flex-col p-4">
+                                                    <span className="text-5xl mb-3">📚</span>
+                                                    <span className="font-medium text-base">No Video Resource</span>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Right Col: Personal Study Notes (1/3) */}
-                                <div className="space-y-4">
-                                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 md:p-6 border border-gray-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none sticky top-36 transition-all duration-300">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center border border-amber-100 dark:border-amber-900/10">
-                                                    <FaStickyNote className="text-amber-500" size={20} />
+                                {/* Notes Section - Right Side */}
+                                <div className="lg:col-span-1 p-4 lg:p-0">
+                                    <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-gray-100 dark:border-slate-800 shadow-sm" style={{ maxHeight: '65vh' }}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                                                    <FaStickyNote className="text-amber-500 text-sm" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-900 dark:text-white leading-none">Personal Notes</h3>
-                                                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Only you can see this</p>
+                                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">My Notes</h3>
+                                                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Private</p>
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <textarea
-                                            className="w-full h-[300px] md:h-[450px] bg-slate-50 dark:bg-slate-950/50 rounded-2xl p-5 md:p-6 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-800 transition-all resize-none placeholder:text-slate-400 border border-transparent focus:border-slate-200 dark:focus:border-slate-800 leading-relaxed"
-                                            placeholder="Write your study notes here... use this space for timestamps, key takeaways, or reminders."
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                        ></textarea>
-
-                                        <div className="mt-6 flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                    Character Count
-                                                </span>
-                                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                                    {notes.length.toLocaleString()}
-                                                </span>
                                             </div>
                                             <button
                                                 onClick={handleSaveNotes}
                                                 disabled={isSavingNotes}
-                                                className="group flex items-center gap-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-2xl text-xs font-bold hover:shadow-2xl hover:shadow-slate-500/20 active:scale-95 disabled:opacity-50 transition-all duration-300"
+                                                className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all"
                                             >
                                                 {isSavingNotes ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                        <span>Syncing...</span>
-                                                    </>
+                                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                                                 ) : (
-                                                    <>
-                                                        <FaSave className="group-hover:scale-110 transition-transform" />
-                                                        <span>Save Records</span>
-                                                    </>
+                                                    <FaSave className="text-xs" />
                                                 )}
+                                                <span>{isSavingNotes ? 'Saving' : 'Save'}</span>
+                                            </button>
+                                        </div>
+
+                                        <textarea
+                                            className="w-full bg-slate-50 dark:bg-slate-950/50 rounded-lg p-3 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900/50 transition-all resize-none placeholder:text-slate-400 border border-transparent focus:border-amber-200 dark:focus:border-amber-800/50 leading-relaxed"
+                                            style={{ height: 'calc(65vh - 100px)' }}
+                                            placeholder="Write notes, timestamps, key points..."
+                                            value={notes}
+                                            onChange={(e) => setNotes(e.target.value)}
+                                        ></textarea>
+
+                                        <div className="mt-2 text-[10px] text-slate-400 text-right">
+                                            {notes.length > 0 && `${notes.length.toLocaleString()} chars`}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Title, Details and Status Section - All in one line */}
+                            <div className="px-4 sm:px-6 lg:px-4 py-3 sm:py-4 border-b border-gray-100 dark:border-slate-800">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                    {/* Title and Details */}
+                                    <div className="flex-1 min-w-0">
+                                        <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-2">{selectedLecture.title}</h1>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Lecture {selectedLecture.number}</span>
+                                            {selectedLecture.resourceUrl && (
+                                                <a
+                                                    href={selectedLecture.resourceUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold transition-all border border-blue-100 dark:border-blue-800/50"
+                                                >
+                                                    <FaPlayCircle className="text-xs" />
+                                                    <span className="hidden xs:inline">Open Video URL</span>
+                                                    <span className="xs:hidden">URL</span>
+                                                </a>
+                                            )}
+                                            {selectedLecture.dueDate && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium">
+                                                    <FaClock className="text-xs" />
+                                                    Due {new Date(selectedLecture.dueDate).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Right Side: Status Selector and Navigation Buttons */}
+                                    <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
+                                        {/* Status Selector */}
+                                        <div className="flex-1 sm:flex-initial">
+                                            <StatusSelector
+                                                status={progressMap[selectedLecture._id]?.status || 'Not Started'}
+                                                onChange={(newStatus) => handleStatusChange(selectedLecture._id, newStatus)}
+                                                disabled={false}
+                                                customStatuses={course?.lectureStatuses}
+                                            />
+                                        </div>
+
+                                        {/* Navigation Buttons */}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <button
+                                                onClick={handlePrevLecture}
+                                                disabled={getFlattenedLectures().findIndex(l => l._id === selectedLecture._id) === 0}
+                                                className="group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <FaStepBackward className="group-hover:-translate-x-0.5 transition-transform text-xs" />
+                                                <span className="hidden sm:inline">Previous</span>
+                                            </button>
+
+                                            <button
+                                                onClick={handleNextLecture}
+                                                disabled={getFlattenedLectures().findIndex(l => l._id === selectedLecture._id) === getFlattenedLectures().length - 1}
+                                                className="group flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-20 disabled:scale-100 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <span>Next</span>
+                                                <FaStepForward className="group-hover:translate-x-0.5 transition-transform text-xs" />
                                             </button>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
+                            {/* Description and Comments */}
+                            <div className="px-4 sm:px-6 lg:px-4 py-4 sm:py-6 pb-8">
+                                {/* Description (if exists) */}
+                                {selectedLecture.description && (
+                                    <div className="mb-6 pb-5 border-b border-gray-100 dark:border-slate-800">
+                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-2">Description</h3>
+                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{selectedLecture.description}</p>
+                                    </div>
+                                )}
+
+                                {/* Comments Section */}
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                                        Discussion ({comments.length})
+                                    </h3>
+
+                                    {/* Comment Input */}
+                                    <form onSubmit={handleAddComment} className="flex gap-3 items-start">
+                                        <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 uppercase shrink-0">
+                                            {user?.name?.charAt(0) || 'U'}
+                                        </div>
+                                        <div className="flex-1 flex gap-2 items-center bg-slate-50 dark:bg-slate-900 rounded-full px-4 py-2 border border-gray-200 dark:border-slate-700">
+                                            <input
+                                                type="text"
+                                                className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
+                                                placeholder="Add a comment..."
+                                                value={newComment}
+                                                onChange={(e) => setNewComment(e.target.value)}
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={!newComment.trim()}
+                                                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-1.5 rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+                                            >
+                                                Post
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    {/* Comments List */}
+                                    <div className="space-y-4">
+                                        {comments.length > 0 ? (
+                                            <>
+                                                {comments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((comment) => (
+                                                    <div key={comment._id} className="flex gap-3">
+                                                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 uppercase">
+                                                            {(comment.user?.name || comment.student?.name || '?').charAt(0)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-900 rounded-xl px-4 py-3">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                                                                    {(comment.user?._id || comment.student?._id) === user?._id ? 'You' : (comment.user?.name || comment.student?.name || 'Unknown')}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed break-words">{comment.details}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                {/* Pagination */}
+                                                {Math.ceil(comments.length / itemsPerPage) > 1 && (
+                                                    <div className="flex justify-center items-center gap-4 pt-2">
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                            disabled={currentPage === 1}
+                                                            className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors px-3 py-1.5"
+                                                        >
+                                                            ← Prev
+                                                        </button>
+                                                        <span className="text-xs text-slate-400 font-medium">
+                                                            {currentPage} / {Math.ceil(comments.length / itemsPerPage)}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(comments.length / itemsPerPage)))}
+                                                            disabled={currentPage === Math.ceil(comments.length / itemsPerPage)}
+                                                            className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors px-3 py-1.5"
+                                                        >
+                                                            Next →
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="py-8 text-center">
+                                                <p className="text-sm text-slate-400 dark:text-slate-500">No comments yet. Be the first to comment!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col justify-center items-center h-full text-slate-400 dark:text-slate-500 space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl">👈</div>
-                            <p className="text-lg font-medium text-slate-600 dark:text-slate-400">Select a lecture from the sidebar to start learning.</p>
+                        <div className="flex flex-col justify-center items-center h-full text-slate-400 dark:text-slate-500 space-y-4 p-4">
+                            <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl">👈</div>
+                            <p className="text-base font-medium text-slate-600 dark:text-slate-400 text-center">Select a lecture from the sidebar to start learning.</p>
                         </div>
                     )}
                 </div>
