@@ -46,8 +46,15 @@ const activityLogger = async (req, res, next) => {
                 details: details || `Request to ${req.originalUrl}`
             };
 
-            // Link to Course
-            const courseId = req.body.courseId || req.body.course || (res.locals.course ? res.locals.course._id : undefined);
+            // Link to Course - extract from URL params, body, or parse from URL
+            let courseId = req.body?.courseId || req.body?.course || req.params?.id || req.params?.courseId || res.locals.course?._id;
+
+            // Fallback: extract course ID from URL pattern /courses/:id
+            if (!courseId && url.includes('/courses/')) {
+                const match = url.match(/\/courses\/([a-f0-9]{24})/i);
+                if (match) courseId = match[1];
+            }
+
             if (courseId) logData.course = courseId;
 
             // Override from Controller
