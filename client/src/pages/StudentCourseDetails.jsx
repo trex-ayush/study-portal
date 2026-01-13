@@ -53,12 +53,18 @@ const StudentCourseDetails = () => {
         };
     }, [course]);
 
-    // Fetch Course & Progress (initial load - only essential data)
+    // Fetch Course & Progress (initial load - optimized with parallel requests)
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Get Course Details
-                const courseRes = await api.get(`/courses/${id}`);
+                // Fetch course details and progress in parallel (optimized)
+                const [courseRes, progressRes, unreadRes] = await Promise.all([
+                    api.get(`/courses/${id}`),
+                    api.get(`/courses/${id}/my-progress`),
+                    api.get(`/broadcasts/course/${id}/unread-count`)
+                ]);
+
+                // 1. Set Course Details
                 setCourse(courseRes.data);
 
                 // Auto-expand all sections by default
@@ -68,13 +74,10 @@ const StudentCourseDetails = () => {
                     setExpandedSections(initialExpanded);
                 }
 
-                // 2. Get Student's Progress
-                const myRes = await api.get('/courses/my/enrolled');
-                const currentCourseProgress = myRes.data.find(p => p.course._id === id || p.course === id);
-
-                if (currentCourseProgress && currentCourseProgress.completedLectures) {
+                // 2. Set Student's Progress (from optimized endpoint)
+                if (progressRes.data && progressRes.data.completedLectures) {
                     const map = {};
-                    currentCourseProgress.completedLectures.forEach(item => {
+                    progressRes.data.completedLectures.forEach(item => {
                         map[item.lecture] = {
                             status: item.status,
                             completedAt: item.completedAt
@@ -83,8 +86,7 @@ const StudentCourseDetails = () => {
                     setProgressMap(map);
                 }
 
-                // 3. Get unread broadcast count
-                const unreadRes = await api.get(`/broadcasts/course/${id}/unread-count`);
+                // 3. Set unread broadcast count
                 setUnreadBroadcastCount(unreadRes.data.unreadCount || 0);
             } catch (err) {
                 console.error("Failed to fetch data", err);

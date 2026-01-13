@@ -145,9 +145,8 @@ const StudentDashboard = () => {
                                 const completionLabel = item.course.completedStatus || 'Completed';
                                 const completedCount = item.completedLectures ? item.completedLectures.filter(l => l.status === completionLabel).length : 0;
 
-                                const totalLectures = item.course.sections
-                                    ? item.course.sections.reduce((acc, sec) => acc + (sec.lectures ? sec.lectures.length : 0), 0)
-                                    : 0;
+                                // Use pre-computed totalLectures from optimized API
+                                const totalLectures = item.course.totalLectures ?? 0;
                                 const percent = totalLectures > 0 ? Math.round((completedCount / totalLectures) * 100) : 0;
 
                                 return (
@@ -227,9 +226,9 @@ const StudentDashboard = () => {
                         {createdCourses.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {createdCourses.map(course => {
-                                    const totalLectures = course.sections
-                                        ? course.sections.reduce((acc, sec) => acc + (sec.lectures ? sec.lectures.length : 0), 0)
-                                        : 0;
+                                    // Use pre-computed totalLectures from optimized API
+                                    const totalLectures = course.totalLectures ?? 0;
+                                    const sectionCount = course.sectionCount ?? 0;
 
                                     return (
                                         <div key={course._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group">
@@ -275,7 +274,7 @@ const StudentDashboard = () => {
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <FaUsers className="text-slate-400" />
-                                                        {course.sections?.length || 0} sections
+                                                        {sectionCount} sections
                                                     </span>
                                                 </div>
 
