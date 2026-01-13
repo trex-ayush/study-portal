@@ -300,17 +300,14 @@ const enrollStudent = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get enrolled courses for current user
+// @desc    Get enrolled courses for current user (optimized - only returns counts, not full lecture data)
 // @route   GET /api/courses/my/enrolled
 // @access  Private
 const getEnrolledCourses = asyncHandler(async (req, res) => {
     const progresses = await Progress.find({ student: req.user.id })
         .populate({
             path: 'course',
-            populate: {
-                path: 'sections.lectures',
-                model: 'Lecture'
-            }
+            select: 'title description status completedStatus sections'
         });
 
     // Only show Published courses to students (hide Draft and Archived)
@@ -318,21 +315,54 @@ const getEnrolledCourses = asyncHandler(async (req, res) => {
         progress.course && progress.course.status === 'Published'
     );
 
-    // Filter hidden content for non-admins
-    if (req.user.role !== 'admin') {
-        publishedProgresses.forEach(progress => {
-            if (progress.course && progress.course.sections) {
-                progress.course.sections = progress.course.sections
-                    .filter(section => section.isPublic)
-                    .map(section => ({
-                        ...section.toObject(),
-                        lectures: section.lectures.filter(lecture => lecture.isPublic)
-                    }));
+    // Transform data to include lecture counts instead of full lecture data
+    const optimizedProgresses = publishedProgresses.map(progress => {
+        const course = progress.course;
+        let totalLectures = 0;
+
+        // Count lectures from sections (sections contain lecture IDs)
+        if (course.sections) {
+            course.sections.forEach(section => {
+                if (section.isPublic || req.user.role === 'admin') {
+                    totalLectures += section.lectures ? section.lectures.length : 0;
+                }
+            });
+        }
+
+        return {
+            _id: progress._id,
+            completedLectures: progress.completedLectures,
+            course: {
+                _id: course._id,
+                title: course.title,
+                description: course.description,
+                status: course.status,
+                completedStatus: course.completedStatus,
+                totalLectures // Pre-computed count
             }
-        });
+        };
+    });
+
+    res.status(200).json(optimizedProgresses);
+});
+
+// @desc    Get current user's progress for a specific course
+// @route   GET /api/courses/:id/my-progress
+// @access  Private
+const getMyProgress = asyncHandler(async (req, res) => {
+    const progress = await Progress.findOne({
+        student: req.user.id,
+        course: req.params.id
+    });
+
+    if (!progress) {
+        return res.status(200).json({ completedLectures: [] });
     }
 
-    res.status(200).json(publishedProgresses);
+    res.status(200).json({
+        _id: progress._id,
+        completedLectures: progress.completedLectures
+    });
 });
 
 // @desc    Get single lecture
@@ -697,16 +727,13 @@ const removeStudent = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Student removed' });
 });
 
-// @desc    Get courses created by current user OR where user is a teacher
+// @desc    Get courses created by current user OR where user is a teacher (optimized)
 // @route   GET /api/courses/my/created
 // @access  Private
 const getCreatedCourses = asyncHandler(async (req, res) => {
-    // Get courses created by user
+    // Get courses created by user (only select necessary fields)
     const ownedCourses = await Course.find({ user: req.user.id })
-        .populate({
-            path: 'sections.lectures',
-            model: 'Lecture'
-        })
+        .select('title description status sections createdAt')
         .sort({ createdAt: -1 });
 
     // Get courses where user is a teacher
@@ -714,22 +741,41 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
     const teacherCourseIds = teacherAssignments.map(t => t.course);
 
     const teachingCourses = await Course.find({ _id: { $in: teacherCourseIds } })
-        .populate({
-            path: 'sections.lectures',
-            model: 'Lecture'
-        })
+        .select('title description status sections createdAt')
         .sort({ createdAt: -1 });
 
-    // Combine and mark courses with role info
-    const ownedWithRole = ownedCourses.map(c => ({
-        ...c.toObject(),
-        userRole: 'owner'
-    }));
+    // Combine and mark courses with role info (calculate counts, don't send full lecture data)
+    const ownedWithRole = ownedCourses.map(c => {
+        const courseObj = c.toObject();
+        const totalLectures = courseObj.sections?.reduce((acc, sec) => acc + (sec.lectures?.length || 0), 0) || 0;
+        const sectionCount = courseObj.sections?.length || 0;
+
+        return {
+            _id: courseObj._id,
+            title: courseObj.title,
+            description: courseObj.description,
+            status: courseObj.status,
+            createdAt: courseObj.createdAt,
+            totalLectures,
+            sectionCount,
+            userRole: 'owner'
+        };
+    });
 
     const teachingWithRole = teachingCourses.map(c => {
+        const courseObj = c.toObject();
         const assignment = teacherAssignments.find(t => t.course.toString() === c._id.toString());
+        const totalLectures = courseObj.sections?.reduce((acc, sec) => acc + (sec.lectures?.length || 0), 0) || 0;
+        const sectionCount = courseObj.sections?.length || 0;
+
         return {
-            ...c.toObject(),
+            _id: courseObj._id,
+            title: courseObj.title,
+            description: courseObj.description,
+            status: courseObj.status,
+            createdAt: courseObj.createdAt,
+            totalLectures,
+            sectionCount,
             userRole: 'teacher',
             permissions: assignment ? assignment.permissions : {}
         };
@@ -791,5 +837,6 @@ module.exports = {
     deleteLecture,
     getLecture,
     getUserStats,
-    removeStudent
+    removeStudent,
+    getMyProgress
 };
