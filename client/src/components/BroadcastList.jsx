@@ -63,7 +63,9 @@ const BroadcastList = ({
             onRefresh();
             toast.success('Broadcast sent!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error sending broadcast');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error sending broadcast');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -86,7 +88,9 @@ const BroadcastList = ({
             onRefresh();
             toast.success('Broadcast updated!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error updating broadcast');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error updating broadcast');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -100,7 +104,9 @@ const BroadcastList = ({
             onRefresh();
             toast.success('Broadcast deleted!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error deleting broadcast');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error deleting broadcast');
+            }
         }
     };
 

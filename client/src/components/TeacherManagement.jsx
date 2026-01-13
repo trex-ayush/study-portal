@@ -127,7 +127,9 @@ const TeacherManagement = ({
             fetchTeachers();
             toast.success('Teacher added!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error adding teacher');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error adding teacher');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -154,7 +156,9 @@ const TeacherManagement = ({
             fetchTeachers();
             toast.success('Permissions updated!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error updating permissions');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error updating permissions');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -168,7 +172,9 @@ const TeacherManagement = ({
             fetchTeachers();
             toast.success('Teacher removed');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error removing teacher');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error removing teacher');
+            }
         }
     };
 

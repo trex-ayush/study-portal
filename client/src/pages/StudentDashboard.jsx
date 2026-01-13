@@ -65,7 +65,9 @@ const StudentDashboard = () => {
             toast.success('Course created successfully');
             navigate(`/admin/course/${res.data._id}`);
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to create course');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Failed to create course');
+            }
         } finally {
             setCreating(false);
         }
@@ -82,7 +84,9 @@ const StudentDashboard = () => {
             setCourseToDelete(null);
             toast.success('Course deleted successfully');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to delete course');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Failed to delete course');
+            }
         } finally {
             setDeleting(false);
         }

@@ -70,7 +70,9 @@ const CourseStudents = () => {
             toast.success('Student enrolled successfully');
             fetchStudents();
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error enrolling student');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error enrolling student');
+            }
         } finally {
             setIsEnrolling(false);
         }
@@ -84,7 +86,9 @@ const CourseStudents = () => {
             toast.success('Student removed from course');
             fetchStudents();
         } catch (error) {
-            toast.error('Failed to remove student');
+            if (!error.handled) {
+                toast.error('Failed to remove student');
+            }
         }
     };
 

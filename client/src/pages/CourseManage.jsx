@@ -230,7 +230,9 @@ const CourseManage = () => {
             fetchCourse();
             toast.success(editingLectureId ? 'Lecture updated!' : 'Lecture added!');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error saving lecture');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error saving lecture');
+            }
         }
     };
 
@@ -305,7 +307,9 @@ const CourseManage = () => {
             toast.success('You have left the course');
             navigate('/dashboard');
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Error leaving course');
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error leaving course');
+            }
         }
     };
 
