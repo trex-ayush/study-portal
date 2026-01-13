@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import api from '../api/axios';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { FaBook, FaPlayCircle, FaCheckCircle, FaChartLine, FaPlus, FaCog, FaUsers, FaEye, FaEyeSlash, FaTrash } from 'react-icons/fa';
+import { FaBook, FaCheckCircle, FaPlus, FaCog, FaUsers, FaEye, FaEyeSlash, FaTrash, FaGraduationCap, FaChalkboardTeacher } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const StudentDashboard = () => {
@@ -97,54 +97,90 @@ const StudentDashboard = () => {
         setShowDeleteModal(true);
     };
 
-    if (loading) return <div className="flex justify-center items-center h-screen text-slate-400 font-medium">Loading Dashboard...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-950">
+            <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-3 border-slate-200 dark:border-slate-700 border-t-slate-600 dark:border-t-slate-400 rounded-full animate-spin"></div>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Dashboard...</p>
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-12 transition-colors duration-300">
 
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 transition-colors duration-300">
-                <div className="container mx-auto px-4 h-24 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Welcome back, {user?.name}</p>
+                <div className="container mx-auto px-4 py-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                Welcome back, {user?.name?.split(' ')[0] || 'User'}
+                            </h1>
+                        </div>
+                        {/* Quick Stats */}
+                        <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                <FaGraduationCap className="text-slate-400 dark:text-slate-500" />
+                                <span className="font-medium text-slate-900 dark:text-white">{enrolledCourses.length}</span>
+                                <span>Enrolled</span>
+                            </div>
+                            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
+                            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                <FaChalkboardTeacher className="text-slate-400 dark:text-slate-500" />
+                                <span className="font-medium text-slate-900 dark:text-white">{createdCourses.length}</span>
+                                <span>Teaching</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-10">
                 <div className="container mx-auto px-4">
                     <div className="flex gap-1">
                         <button
                             onClick={() => setActiveTab('enrolled')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${
                                 activeTab === 'enrolled'
                                     ? 'border-slate-900 text-slate-900 dark:text-white dark:border-white'
                                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                             }`}
                         >
-                            My Learning
+                            <FaGraduationCap className="text-sm" />
+                            <span>My Learning</span>
+                            {enrolledCourses.length > 0 && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    {enrolledCourses.length}
+                                </span>
+                            )}
                         </button>
                         <button
                             onClick={() => setActiveTab('created')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${
                                 activeTab === 'created'
                                     ? 'border-slate-900 text-slate-900 dark:text-white dark:border-white'
                                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                             }`}
                         >
-                            My Courses {createdCourses.length > 0 && `(${createdCourses.length})`}
+                            <FaChalkboardTeacher className="text-sm" />
+                            <span>My Courses</span>
+                            {createdCourses.length > 0 && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    {createdCourses.length}
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 py-6 sm:py-8">
                 {activeTab === 'enrolled' ? (
                     // Enrolled Courses Tab
                     enrolledCourses.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                             {enrolledCourses.map(item => {
                                 const completionLabel = item.course.completedStatus || 'Completed';
                                 const completedCount = item.completedLectures ? item.completedLectures.filter(l => l.status === completionLabel).length : 0;
@@ -154,120 +190,152 @@ const StudentDashboard = () => {
                                 const percent = totalLectures > 0 ? Math.round((completedCount / totalLectures) * 100) : 0;
 
                                 return (
-                                    <div key={item._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group">
-                                        {/* Card Header / Icon */}
-                                        <div className="h-32 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
-                                            <FaBook className="text-white/20 text-6xl transform group-hover:scale-110 transition-transform duration-500" />
-                                            <div className="absolute bottom-4 left-4">
-                                                <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-white/10">
-                                                    Enrolled
-                                                </span>
+                                    <Link
+                                        key={item._id}
+                                        to={`/course/${item.course._id}`}
+                                        className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-600 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group"
+                                    >
+                                        {/* Card Header with Progress Ring */}
+                                        <div className="h-28 sm:h-32 bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-700 dark:to-indigo-800 flex items-center justify-between px-5 relative overflow-hidden">
+                                            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50"></div>
+                                            <FaGraduationCap className="text-white/20 text-5xl transform group-hover:scale-110 transition-transform duration-500" />
+
+                                            {/* Progress Circle */}
+                                            <div className="relative w-14 h-14 sm:w-16 sm:h-16">
+                                                <svg className="w-full h-full transform -rotate-90">
+                                                    <circle
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        r="45%"
+                                                        stroke="rgba(255,255,255,0.2)"
+                                                        strokeWidth="4"
+                                                        fill="none"
+                                                    />
+                                                    <circle
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        r="45%"
+                                                        stroke="white"
+                                                        strokeWidth="4"
+                                                        fill="none"
+                                                        strokeLinecap="round"
+                                                        strokeDasharray={`${percent * 2.83} 283`}
+                                                        className="transition-all duration-500"
+                                                    />
+                                                </svg>
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <span className="text-white text-sm font-bold">{percent}%</span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="p-6 flex-1 flex flex-col">
-                                            <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight mb-2 line-clamp-2 min-h-[3.5rem] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                        <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                                            <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white leading-tight mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                                 {item.course.title}
                                             </h2>
-                                            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-6 flex-1">
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 flex-1">
                                                 {item.course.description || "No description provided."}
                                             </p>
 
                                             {/* Progress Info */}
-                                            <div className="mb-6">
+                                            <div className="mt-auto">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <FaCheckCircle className="text-green-500 text-xs" />
-                                                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                                            {completedCount} / {totalLectures} Completed
+                                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                        {completedCount} of {totalLectures} lectures
+                                                    </span>
+                                                    {percent === 100 && (
+                                                        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                                                            <FaCheckCircle className="text-[10px]" /> Complete
                                                         </span>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-slate-900 dark:text-white">{percent}%</span>
+                                                    )}
                                                 </div>
 
                                                 <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                                                     <div
-                                                        className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                                                        className={`h-1.5 rounded-full transition-all duration-500 ${
+                                                            percent === 100 ? 'bg-green-500' : 'bg-blue-500'
+                                                        }`}
                                                         style={{ width: `${percent}%` }}
                                                     />
                                                 </div>
                                             </div>
-
-                                            <Link
-                                                to={`/course/${item.course._id}`}
-                                                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 font-semibold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-700 group-hover:border-slate-400 dark:group-hover:border-slate-500"
-                                            >
-                                                Continue Learning <FaPlayCircle className="text-xs opacity-70" />
-                                            </Link>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>
                     ) : (
-                        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed transition-colors duration-300">
-                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FaChartLine className="text-slate-300 dark:text-slate-600 text-2xl" />
+                        <div className="text-center py-16 sm:py-20 bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-800 transition-colors duration-300">
+                            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                <FaGraduationCap className="text-blue-400 dark:text-blue-500 text-3xl" />
                             </div>
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
                                 No courses yet
                             </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                When you are enrolled in a course, it will appear here.
+                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                                When you get enrolled in a course by an instructor, it will appear here.
                             </p>
                         </div>
                     )
                 ) : (
                     // Created Courses Tab
                     <div>
-                        {/* Create Course Button */}
-                        <div className="mb-6">
+                        {/* Header with Create Button */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                            <div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {createdCourses.length > 0
+                                        ? `You have ${createdCourses.length} course${createdCourses.length > 1 ? 's' : ''}`
+                                        : 'Start creating your first course'}
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowCreateModal(true)}
-                                className="bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 transition-colors"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm hover:shadow-md w-full sm:w-auto justify-center"
                             >
                                 <FaPlus className="text-xs" /> Create New Course
                             </button>
                         </div>
 
                         {createdCourses.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                                 {createdCourses.map(course => {
                                     // Use pre-computed totalLectures from optimized API
                                     const totalLectures = course.totalLectures ?? 0;
-                                    const sectionCount = course.sectionCount ?? 0;
+                                    const studentCount = course.studentCount ?? 0;
 
                                     return (
-                                        <div key={course._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group">
+                                        <div key={course._id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group">
                                             {/* Card Header */}
-                                            <div className="h-32 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center relative overflow-hidden">
-                                                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
-                                                <FaBook className="text-white/20 text-6xl transform group-hover:scale-110 transition-transform duration-500" />
-                                                <div className="absolute bottom-4 left-4 flex gap-2">
-                                                    <span className={`backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-white/10 ${
-                                                        course.status === 'Published' ? 'bg-green-500/80' :
-                                                        course.status === 'Archived' ? 'bg-red-500/80' : 'bg-yellow-500/80'
+                                            <div className="h-28 sm:h-32 bg-gradient-to-br from-emerald-600 to-teal-700 dark:from-emerald-700 dark:to-teal-800 flex items-center justify-between px-5 relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50"></div>
+                                                <FaChalkboardTeacher className="text-white/20 text-5xl transform group-hover:scale-110 transition-transform duration-500" />
+
+                                                {/* Status Badge */}
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className={`text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                                        course.status === 'Published' ? 'bg-white/25' :
+                                                        course.status === 'Archived' ? 'bg-red-500/50' : 'bg-yellow-500/50'
                                                     }`}>
-                                                        {course.status || 'Draft'}
-                                                    </span>
-                                                </div>
-                                                <div className="absolute top-4 right-4 flex gap-2">
-                                                    {course.status === 'Published' ? (
-                                                        <FaEye className="text-white/60 text-sm" title="Visible to enrolled students" />
-                                                    ) : (
-                                                        <FaEyeSlash className="text-white/60 text-sm" title="Hidden from students" />
-                                                    )}
-                                                </div>
-                                                <div className="absolute bottom-4 right-4">
-                                                    <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-white/10">
-                                                        Creator
+                                                        {course.status === 'Published' ? (
+                                                            <span className="flex items-center gap-1">
+                                                                <FaEye className="text-[8px]" /> Live
+                                                            </span>
+                                                        ) : course.status === 'Archived' ? (
+                                                            <span className="flex items-center gap-1">
+                                                                <FaEyeSlash className="text-[8px]" /> Archived
+                                                            </span>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1">
+                                                                <FaEyeSlash className="text-[8px]" /> Draft
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <div className="p-6 flex-1 flex flex-col">
-                                                <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight mb-2 line-clamp-2 min-h-[3.5rem] transition-colors">
+                                            <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                                                <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white leading-tight mb-2 line-clamp-2 transition-colors">
                                                     {course.title}
                                                 </h2>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 flex-1">
@@ -275,42 +343,38 @@ const StudentDashboard = () => {
                                                 </p>
 
                                                 {/* Stats */}
-                                                <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mb-4">
-                                                    <span className="flex items-center gap-1">
-                                                        <FaBook className="text-slate-400" />
+                                                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-4 flex-wrap">
+                                                    <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded">
+                                                        <FaBook className="text-slate-400 text-[10px]" />
                                                         {totalLectures} lectures
                                                     </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <FaUsers className="text-slate-400" />
-                                                        {sectionCount} sections
+                                                    <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded">
+                                                        <FaUsers className="text-slate-400 text-[10px]" />
+                                                        {studentCount} students
                                                     </span>
                                                 </div>
 
                                                 {/* Action Buttons */}
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-2 mt-auto">
                                                     <Link
                                                         to={`/admin/course/${course._id}`}
-                                                        className="flex-1 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
+                                                        className="flex-1 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-medium py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
                                                     >
-                                                        Manage
+                                                        <FaCog className="text-xs" /> Manage
                                                     </Link>
                                                     <Link
                                                         to={`/admin/course/${course._id}/students`}
-                                                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-all hover:bg-slate-50 dark:hover:bg-slate-700"
+                                                        className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-colors"
                                                         title="View Students"
                                                     >
                                                         <FaUsers />
                                                     </Link>
-                                                    <Link
-                                                        to={`/admin/course/${course._id}/settings`}
-                                                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-all hover:bg-slate-50 dark:hover:bg-slate-700"
-                                                        title="Course Settings"
-                                                    >
-                                                        <FaCog />
-                                                    </Link>
                                                     <button
-                                                        onClick={() => openDeleteModal(course)}
-                                                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-red-500 hover:text-red-600 hover:border-red-300 dark:hover:border-red-500 font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-all hover:bg-red-50 dark:hover:bg-red-900/10"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            openDeleteModal(course);
+                                                        }}
+                                                        className="bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-900/20 text-slate-500 hover:text-red-600 dark:hover:text-red-400 font-medium py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-colors"
                                                         title="Delete Course"
                                                     >
                                                         <FaTrash />
@@ -322,21 +386,21 @@ const StudentDashboard = () => {
                                 })}
                             </div>
                         ) : (
-                            <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed transition-colors duration-300">
-                                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <FaBook className="text-slate-300 dark:text-slate-600 text-2xl" />
+                            <div className="text-center py-16 sm:py-20 bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-800 transition-colors duration-300">
+                                <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                    <FaChalkboardTeacher className="text-emerald-400 dark:text-emerald-500 text-3xl" />
                                 </div>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
                                     No courses created yet
                                 </h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
-                                    Create your first course and start teaching!
+                                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">
+                                    Create your first course and start sharing your knowledge with students.
                                 </p>
                                 <button
                                     onClick={() => setShowCreateModal(true)}
-                                    className="bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold py-2.5 px-5 rounded-lg text-sm inline-flex items-center gap-2 transition-colors"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-6 rounded-lg text-sm inline-flex items-center gap-2 transition-colors shadow-sm hover:shadow-md"
                                 >
-                                    <FaPlus className="text-xs" /> Create Course
+                                    <FaPlus className="text-xs" /> Create Your First Course
                                 </button>
                             </div>
                         )}
@@ -346,10 +410,13 @@ const StudentDashboard = () => {
 
             {/* Create Course Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-slate-800">
-                        <div className="p-6 border-b border-gray-200 dark:border-slate-800">
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Create New Course</h2>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <FaPlus className="text-blue-600 dark:text-blue-400 text-lg" />
+                            </div>
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Create New Course</h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Fill in the details to create your course</p>
                         </div>
                         <form onSubmit={handleCreateCourse} className="p-6">
@@ -361,8 +428,8 @@ const StudentDashboard = () => {
                                     type="text"
                                     value={newCourse.title}
                                     onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-colors"
-                                    placeholder="Enter course title"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white dark:focus:bg-slate-800 transition-all outline-none"
+                                    placeholder="e.g., Introduction to Web Development"
                                 />
                             </div>
                             <div className="mb-6">
@@ -373,8 +440,8 @@ const StudentDashboard = () => {
                                     value={newCourse.description}
                                     onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
                                     rows={4}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-colors resize-none"
-                                    placeholder="Describe your course"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white dark:focus:bg-slate-800 transition-all resize-none outline-none"
+                                    placeholder="Describe what students will learn..."
                                 />
                             </div>
                             <div className="flex gap-3">
@@ -384,14 +451,14 @@ const StudentDashboard = () => {
                                         setShowCreateModal(false);
                                         setNewCourse({ title: '', description: '' });
                                     }}
-                                    className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2.5 rounded-lg text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
+                                    className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium py-3 rounded-xl text-sm transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={creating}
-                                    className="flex-1 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 disabled:bg-slate-400 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl text-sm transition-colors shadow-sm hover:shadow-md"
                                 >
                                     {creating ? 'Creating...' : 'Create Course'}
                                 </button>
@@ -403,17 +470,21 @@ const StudentDashboard = () => {
 
             {/* Delete Course Modal */}
             {showDeleteModal && courseToDelete && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-slate-800">
-                        <div className="p-6 border-b border-gray-200 dark:border-slate-800">
-                            <h2 className="text-lg font-bold text-red-600 dark:text-red-400">Delete Course</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">This action cannot be undone</p>
-                        </div>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6">
-                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
-                                Are you sure you want to delete <span className="font-semibold">"{courseToDelete.title}"</span>?
-                                This will permanently remove the course, all its lectures, sections, and enrolled student progress.
+                            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <FaTrash className="text-red-600 dark:text-red-400 text-lg" />
+                            </div>
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Delete Course</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                Are you sure you want to delete <span className="font-semibold text-slate-700 dark:text-slate-200">"{courseToDelete.title}"</span>?
                             </p>
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl p-4 mb-6">
+                                <p className="text-sm text-red-700 dark:text-red-300">
+                                    This action cannot be undone. All lectures, sections, and enrolled student progress will be permanently deleted.
+                                </p>
+                            </div>
                             <div className="flex gap-3">
                                 <button
                                     type="button"
@@ -421,14 +492,14 @@ const StudentDashboard = () => {
                                         setShowDeleteModal(false);
                                         setCourseToDelete(null);
                                     }}
-                                    className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2.5 rounded-lg text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
+                                    className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium py-3 rounded-xl text-sm transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleDeleteCourse}
                                     disabled={deleting}
-                                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+                                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl text-sm transition-colors shadow-sm hover:shadow-md"
                                 >
                                     {deleting ? 'Deleting...' : 'Delete Course'}
                                 </button>

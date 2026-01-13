@@ -744,11 +744,28 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
         .select('title description status sections createdAt')
         .sort({ createdAt: -1 });
 
+    // Get all course IDs to fetch student counts
+    const allCourseIds = [
+        ...ownedCourses.map(c => c._id),
+        ...teachingCourses.map(c => c._id)
+    ];
+
+    // Get student counts for all courses in one query
+    const studentCounts = await Progress.aggregate([
+        { $match: { course: { $in: allCourseIds } } },
+        { $group: { _id: '$course', count: { $sum: 1 } } }
+    ]);
+    const studentCountMap = studentCounts.reduce((acc, item) => {
+        acc[item._id.toString()] = item.count;
+        return acc;
+    }, {});
+
     // Combine and mark courses with role info (calculate counts, don't send full lecture data)
     const ownedWithRole = ownedCourses.map(c => {
         const courseObj = c.toObject();
         const totalLectures = courseObj.sections?.reduce((acc, sec) => acc + (sec.lectures?.length || 0), 0) || 0;
         const sectionCount = courseObj.sections?.length || 0;
+        const studentCount = studentCountMap[courseObj._id.toString()] || 0;
 
         return {
             _id: courseObj._id,
@@ -758,6 +775,7 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
             createdAt: courseObj.createdAt,
             totalLectures,
             sectionCount,
+            studentCount,
             userRole: 'owner'
         };
     });
@@ -767,6 +785,7 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
         const assignment = teacherAssignments.find(t => t.course.toString() === c._id.toString());
         const totalLectures = courseObj.sections?.reduce((acc, sec) => acc + (sec.lectures?.length || 0), 0) || 0;
         const sectionCount = courseObj.sections?.length || 0;
+        const studentCount = studentCountMap[courseObj._id.toString()] || 0;
 
         return {
             _id: courseObj._id,
@@ -776,6 +795,7 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
             createdAt: courseObj.createdAt,
             totalLectures,
             sectionCount,
+            studentCount,
             userRole: 'teacher',
             permissions: assignment ? assignment.permissions : {}
         };
