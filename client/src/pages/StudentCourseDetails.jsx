@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaPlayCircle, FaBook, FaCheckCircle, FaChevronDown, FaChevronUp, FaBullhorn } from 'react-icons/fa';
+import { FaPlayCircle, FaBook, FaCheckCircle, FaChevronDown, FaChevronUp, FaBullhorn, FaClipboardList, FaTrophy, FaClock, FaRedo } from 'react-icons/fa';
 import BroadcastList from '../components/BroadcastList';
 import AuthContext from '../context/AuthContext';
 
@@ -24,9 +24,14 @@ const StudentCourseDetails = () => {
     const [broadcastPagination, setBroadcastPagination] = useState({ page: 1, pages: 1, total: 0 });
     const [unreadBroadcastCount, setUnreadBroadcastCount] = useState(0);
 
+    // Quiz State
+    const [quizzes, setQuizzes] = useState([]);
+    const [quizzesLoaded, setQuizzesLoaded] = useState(false);
+
     // Tab definitions
     const tabs = [
         { id: 'content', label: 'Content', icon: FaBook },
+        { id: 'quizzes', label: 'Quizzes', icon: FaClipboardList },
         { id: 'announcements', label: 'Announcements', icon: FaBullhorn },
     ];
 
@@ -107,7 +112,22 @@ const StudentCourseDetails = () => {
                 markBroadcastsAsRead();
             }
         }
-    }, [activeTab, broadcastsLoaded, id, unreadBroadcastCount]);
+        // Lazy load quizzes when quizzes tab is activated
+        if (activeTab === 'quizzes' && id && !quizzesLoaded) {
+            fetchQuizzes();
+        }
+    }, [activeTab, broadcastsLoaded, id, unreadBroadcastCount, quizzesLoaded]);
+
+    // Fetch quizzes for this course
+    const fetchQuizzes = async () => {
+        try {
+            const res = await api.get(`/quizzes/course/${id}`);
+            setQuizzes(res.data);
+            setQuizzesLoaded(true);
+        } catch (err) {
+            console.error("Failed to fetch quizzes", err);
+        }
+    };
 
     // Fetch broadcast permission
     const fetchBroadcastPermission = async () => {
@@ -388,6 +408,136 @@ const StudentCourseDetails = () => {
         );
     };
 
+    // Render Quizzes Tab
+    const renderQuizzesTab = () => {
+        if (!quizzesLoaded) {
+            return (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white"></div>
+                </div>
+            );
+        }
+
+        if (quizzes.length === 0) {
+            return (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
+                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <FaClipboardList className="text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <h3 className="text-sm font-medium text-slate-900 dark:text-white">No Quizzes Available</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Quizzes will appear here once added by the instructor.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-end justify-between border-b border-gray-200 dark:border-slate-800 pb-3">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Course Quizzes</h2>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{quizzes.length} Quiz{quizzes.length !== 1 ? 'zes' : ''}</span>
+                </div>
+
+                <div className="grid gap-4">
+                    {quizzes.map((quiz) => {
+                        const canTake = quiz.attemptsAllowed < 0 || quiz.attemptCount < quiz.attemptsAllowed;
+                        const attemptsText = quiz.attemptsAllowed < 0 ? 'Unlimited' : `${quiz.attemptCount}/${quiz.attemptsAllowed}`;
+
+                        return (
+                            <div
+                                key={quiz._id}
+                                className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white truncate">{quiz.title}</h3>
+                                            {quiz.isRequired && (
+                                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded font-medium shrink-0">
+                                                    Required
+                                                </span>
+                                            )}
+                                        </div>
+                                        {quiz.description && (
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">{quiz.description}</p>
+                                        )}
+
+                                        {/* Quiz Info */}
+                                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                                            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                                <FaClipboardList size={10} />
+                                                <span>{quiz.questions?.length || 0} Questions</span>
+                                            </div>
+                                            {quiz.timeLimit > 0 && (
+                                                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                                    <FaClock size={10} />
+                                                    <span>{quiz.timeLimit} min</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                                <FaRedo size={10} />
+                                                <span>Attempts: {attemptsText}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                                <FaTrophy size={10} />
+                                                <span>Pass: {quiz.passingScore}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right Side: Status & Action */}
+                                    <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-3 shrink-0">
+                                        {quiz.hasPassed ? (
+                                            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                                                <FaCheckCircle size={14} />
+                                                <span className="text-xs font-semibold">Passed</span>
+                                            </div>
+                                        ) : quiz.bestScore > 0 ? (
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">Best Score</p>
+                                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{quiz.bestScore}%</p>
+                                            </div>
+                                        ) : null}
+
+                                        {quiz.hasPassed ? (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => navigate(`/course/${id}/quiz/${quiz._id}`)}
+                                                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                                                >
+                                                    Review
+                                                </button>
+                                                {canTake && (
+                                                    <button
+                                                        onClick={() => navigate(`/course/${id}/quiz/${quiz._id}?retake=true`)}
+                                                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-colors flex items-center gap-1"
+                                                    >
+                                                        <FaRedo size={10} /> Retake
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => navigate(`/course/${id}/quiz/${quiz._id}`)}
+                                                disabled={!canTake}
+                                                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                                                    canTake
+                                                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                {canTake ? (quiz.attemptCount > 0 ? 'Retry' : 'Start Quiz') : 'No Attempts Left'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     // Render Announcements Tab (using shared component)
     const renderAnnouncementsTab = () => {
         if (!broadcastsLoaded) {
@@ -471,6 +621,7 @@ const StudentCourseDetails = () => {
             {/* Tab Content */}
             <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
                 {activeTab === 'content' && renderContentTab()}
+                {activeTab === 'quizzes' && renderQuizzesTab()}
                 {activeTab === 'announcements' && renderAnnouncementsTab()}
             </div>
         </div>
