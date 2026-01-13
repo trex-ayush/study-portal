@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import BroadcastList from '../components/BroadcastList';
 import TeacherManagement from '../components/TeacherManagement';
@@ -657,6 +657,12 @@ const CourseManage = () => {
                                 className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-colors"
                             >
                                 <FaEye className="text-slate-400" size={10} /> <span className="hidden xs:inline">Preview</span><span className="xs:hidden">View</span>
+                            </button>
+                            <button
+                                onClick={() => navigate(`/admin/course/${id}/analytics`)}
+                                className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-colors"
+                            >
+                                <FaChartBar className="text-slate-400" size={10} /> <span className="hidden xs:inline">Analytics</span>
                             </button>
                             <button
                                 onClick={() => navigate(`/admin/course/${id}/settings`)}

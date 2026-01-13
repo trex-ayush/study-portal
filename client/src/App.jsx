@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import CourseSettings from './pages/CourseSettings';
 import CourseStudents from './pages/CourseStudents';
 import GlobalActivity from './pages/GlobalActivity';
+import CourseAnalytics from './pages/CourseAnalytics';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useContext(AuthContext);
@@ -91,6 +92,7 @@ function App() {
                 <Route path="/admin/course/:id" element={<CourseOwnerRoute><CourseManage /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:id/settings" element={<CourseOwnerRoute><CourseSettings /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:id/students" element={<CourseOwnerRoute><CourseStudents /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/lecture/:lectureId" element={<CourseOwnerRoute><AdminLectureView /></CourseOwnerRoute>} />
 
