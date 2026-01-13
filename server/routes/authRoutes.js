@@ -7,9 +7,10 @@ const {
     updatePassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const { authLimiter, registerLimiter } = require('../middleware/rateLimiter');
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
+router.post('/register', registerLimiter, registerUser);
+router.post('/login', authLimiter, loginUser);
 router.get('/me', protect, getMe);
 router.put('/updatepassword', protect, updatePassword);
 

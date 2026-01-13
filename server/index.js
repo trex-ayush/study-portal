@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv').config();
 const { errorHandler } = require('./middleware/errorMiddleware');
 const activityLogger = require('./middleware/activityLogger');
+const { apiLimiter } = require('./middleware/rateLimiter');
 const connectDB = require('./config/db');
 const cors = require('cors');
 
@@ -18,6 +19,9 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Apply rate limiting to all API routes
+app.use('/api', apiLimiter);
 
 // Activity Logger - Tracks non-GET requests
 app.use(activityLogger);
