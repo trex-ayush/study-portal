@@ -206,8 +206,12 @@ const StudentDashboard = () => {
                             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <FaChartLine className="text-slate-300 dark:text-slate-600 text-2xl" />
                             </div>
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No courses yet</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">When you are enrolled in a course, it will appear here.</p>
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                No courses yet
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                When you are enrolled in a course, it will appear here.
+                            </p>
                         </div>
                     )
                 ) : (
@@ -318,8 +322,12 @@ const StudentDashboard = () => {
                                 <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <FaBook className="text-slate-300 dark:text-slate-600 text-2xl" />
                                 </div>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No courses created yet</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">Create your first course and start teaching!</p>
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    No courses created yet
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
+                                    Create your first course and start teaching!
+                                </p>
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold py-2.5 px-5 rounded-lg text-sm inline-flex items-center gap-2 transition-colors"
