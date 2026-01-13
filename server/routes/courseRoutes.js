@@ -42,13 +42,14 @@ const {
     verifyTeacherManagementPermission,
     verifyCourseAccess
 } = require('../middleware/ownershipMiddleware');
+const { createCourseLimiter } = require('../middleware/rateLimiter');
 
 // Static routes first (no :id params)
 router.get('/', protect, getCourses);
 router.get('/my/enrolled', protect, getEnrolledCourses);
 router.get('/my/created', protect, getCreatedCourses);
 router.get('/my/stats', protect, getUserStats);
-router.post('/', protect, createCourse);
+router.post('/', protect, createCourseLimiter, createCourse);
 
 // Lecture routes (before :id routes to avoid conflicts)
 router.put('/lectures/:id/progress', protect, updateLectureProgress);
