@@ -17,6 +17,9 @@ import CourseSettings from './pages/CourseSettings';
 import CourseStudents from './pages/CourseStudents';
 import GlobalActivity from './pages/GlobalActivity';
 import CourseAnalytics from './pages/CourseAnalytics';
+import QuizManage from './pages/QuizManage';
+import QuizTake from './pages/QuizTake';
+import QuizAnalytics from './pages/QuizAnalytics';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useContext(AuthContext);
@@ -95,11 +98,14 @@ function App() {
                 <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/lecture/:lectureId" element={<CourseOwnerRoute><AdminLectureView /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:courseId/quizzes" element={<CourseOwnerRoute><QuizManage /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:courseId/quiz/:quizId/analytics" element={<CourseOwnerRoute><QuizAnalytics /></CourseOwnerRoute>} />
 
                 <Route path="/" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/course/:id" element={<ProtectedRoute><StudentCourseDetails /></ProtectedRoute>} />
                 <Route path="/course/:id/lecture/:lectureId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
+                <Route path="/course/:courseId/quiz/:quizId" element={<ProtectedRoute><QuizTake /></ProtectedRoute>} />
               </Routes>
             </div>
             <Footer />

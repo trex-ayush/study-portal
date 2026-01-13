@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar, FaClipboardList } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import BroadcastList from '../components/BroadcastList';
 import TeacherManagement from '../components/TeacherManagement';
@@ -324,17 +324,25 @@ const CourseManage = () => {
                     <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Course Curriculum</h2>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">Organize your course content into sections and lectures</p>
                 </div>
-                <button
-                    onClick={() => {
-                        setEditingSectionId(null);
-                        setNewSectionTitle('');
-                        setNewSectionIsPublic(true);
-                        setIsSectionModalOpen(true);
-                    }}
-                    className="bg-slate-900 dark:bg-blue-600 text-white px-3 sm:px-4 h-8 sm:h-9 rounded-md text-[10px] sm:text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
-                >
-                    + Add Section
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate(`/admin/course/${id}/quizzes`)}
+                        className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-colors h-8 sm:h-9"
+                    >
+                        <FaClipboardList className="text-slate-400" size={10} /> <span className="hidden xs:inline">Quizzes</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            setEditingSectionId(null);
+                            setNewSectionTitle('');
+                            setNewSectionIsPublic(true);
+                            setIsSectionModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-colors h-8 sm:h-9"
+                    >
+                        + Add Section
+                    </button>
+                </div>
             </div>
 
             {/* Sections List */}
