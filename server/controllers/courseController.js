@@ -789,6 +789,194 @@ const getCreatedCourses = asyncHandler(async (req, res) => {
     res.status(200).json(allCourses);
 });
 
+// @desc    Get course analytics
+// @route   GET /api/courses/:id/analytics
+// @access  Private (Admin or Course Owner/Teacher)
+const getCourseAnalytics = asyncHandler(async (req, res) => {
+    const courseId = req.params.id;
+
+    // Get course with sections and lectures
+    const course = await Course.findById(courseId).populate({
+        path: 'sections.lectures',
+        select: 'title number'
+    });
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    // Calculate total lectures
+    const totalLectures = course.sections?.reduce((acc, sec) => acc + (sec.lectures?.length || 0), 0) || 0;
+
+    // Get all progress records for this course
+    const progresses = await Progress.find({ course: courseId })
+        .populate('student', 'name email');
+
+    const totalStudents = progresses.length;
+
+    // Calculate completion statistics
+    let totalCompletedLectures = 0;
+    let studentsCompleted = 0;
+    const studentProgressData = [];
+    const lectureCompletionMap = {};
+
+    // Initialize lecture completion map
+    course.sections?.forEach(section => {
+        section.lectures?.forEach(lecture => {
+            lectureCompletionMap[lecture._id.toString()] = {
+                title: lecture.title,
+                number: lecture.number,
+                completedCount: 0,
+                sectionTitle: section.title
+            };
+        });
+    });
+
+    progresses.forEach(progress => {
+        const completedCount = progress.completedLectures?.filter(
+            l => l.status === course.completedStatus || l.status === 'Completed'
+        ).length || 0;
+
+        totalCompletedLectures += completedCount;
+
+        if (totalLectures > 0 && completedCount === totalLectures) {
+            studentsCompleted++;
+        }
+
+        // Track per-student progress
+        studentProgressData.push({
+            studentId: progress.student?._id,
+            studentName: progress.student?.name,
+            completedLectures: completedCount,
+            progressPercent: totalLectures > 0 ? Math.round((completedCount / totalLectures) * 100) : 0,
+            enrolledAt: progress.createdAt
+        });
+
+        // Track per-lecture completion
+        progress.completedLectures?.forEach(cl => {
+            if ((cl.status === course.completedStatus || cl.status === 'Completed') && cl.lecture) {
+                const lectureId = cl.lecture.toString();
+                if (lectureCompletionMap[lectureId]) {
+                    lectureCompletionMap[lectureId].completedCount++;
+                }
+            }
+        });
+    });
+
+    // Calculate average progress
+    const averageProgress = totalStudents > 0 && totalLectures > 0
+        ? Math.round((totalCompletedLectures / (totalStudents * totalLectures)) * 100)
+        : 0;
+
+    // Get activity data for the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const activities = await Activity.find({
+        course: courseId,
+        createdAt: { $gte: thirtyDaysAgo }
+    }).sort({ createdAt: 1 });
+
+    // Group activities by date
+    const dailyActivityMap = {};
+    activities.forEach(act => {
+        const dateStr = act.createdAt.toISOString().split('T')[0];
+        if (!dailyActivityMap[dateStr]) {
+            dailyActivityMap[dateStr] = { total: 0, completed: 0 };
+        }
+        dailyActivityMap[dateStr].total++;
+        if (act.action === 'Completed') {
+            dailyActivityMap[dateStr].completed++;
+        }
+    });
+
+    // Generate last 30 days array
+    const dailyActivity = [];
+    for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        dailyActivity.push({
+            date: dateStr,
+            total: dailyActivityMap[dateStr]?.total || 0,
+            completed: dailyActivityMap[dateStr]?.completed || 0
+        });
+    }
+
+    // Get recent enrollments (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentEnrollments = progresses.filter(p => new Date(p.createdAt) >= sevenDaysAgo).length;
+
+    // Sort lectures by completion rate
+    const lectureStats = Object.values(lectureCompletionMap)
+        .map(l => ({
+            ...l,
+            completionRate: totalStudents > 0 ? Math.round((l.completedCount / totalStudents) * 100) : 0
+        }))
+        .sort((a, b) => b.completionRate - a.completionRate);
+
+    // Progress distribution (0-25%, 25-50%, 50-75%, 75-100%)
+    const progressDistribution = {
+        '0-25': 0,
+        '25-50': 0,
+        '50-75': 0,
+        '75-100': 0
+    };
+
+    studentProgressData.forEach(s => {
+        if (s.progressPercent <= 25) progressDistribution['0-25']++;
+        else if (s.progressPercent <= 50) progressDistribution['25-50']++;
+        else if (s.progressPercent <= 75) progressDistribution['50-75']++;
+        else progressDistribution['75-100']++;
+    });
+
+    // Section-wise progress
+    const sectionStats = course.sections?.map(section => {
+        const sectionLectureIds = section.lectures?.map(l => l._id.toString()) || [];
+        let sectionCompletedTotal = 0;
+
+        progresses.forEach(progress => {
+            const sectionCompleted = progress.completedLectures?.filter(cl =>
+                (cl.status === course.completedStatus || cl.status === 'Completed') &&
+                cl.lecture && sectionLectureIds.includes(cl.lecture.toString())
+            ).length || 0;
+            sectionCompletedTotal += sectionCompleted;
+        });
+
+        const sectionTotalPossible = sectionLectureIds.length * totalStudents;
+        return {
+            title: section.title,
+            lectureCount: sectionLectureIds.length,
+            averageCompletion: sectionTotalPossible > 0
+                ? Math.round((sectionCompletedTotal / sectionTotalPossible) * 100)
+                : 0
+        };
+    }) || [];
+
+    res.status(200).json({
+        courseTitle: course.title,
+        overview: {
+            totalStudents,
+            totalLectures,
+            studentsCompleted,
+            averageProgress,
+            recentEnrollments
+        },
+        progressDistribution,
+        dailyActivity,
+        lectureStats,
+        sectionStats,
+        topStudents: studentProgressData.sort((a, b) => b.progressPercent - a.progressPercent).slice(0, 5),
+        recentActivity: activities.slice(-10).reverse().map(a => ({
+            action: a.action,
+            details: a.details,
+            createdAt: a.createdAt
+        }))
+    });
+});
+
 // @desc    Delete course
 // @route   DELETE /api/courses/:id
 // @access  Private (Admin or Course Owner)
@@ -838,5 +1026,6 @@ module.exports = {
     getLecture,
     getUserStats,
     removeStudent,
-    getMyProgress
+    getMyProgress,
+    getCourseAnalytics
 };
