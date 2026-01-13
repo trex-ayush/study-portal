@@ -6,7 +6,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import AdminDashboard from './pages/AdminDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import CourseManage from './pages/CourseManage';
 import CourseView from './pages/CourseView';
@@ -86,7 +85,6 @@ function App() {
                 <Route path="/register" element={<Register />} />
 
                 {/* Admin-only routes */}
-                <Route path="/admin" element={<ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin/activities" element={<ProtectedRoute adminOnly={true}><GlobalActivity /></ProtectedRoute>} />
 
                 {/* Course owner routes (admin OR course owner - backend verifies ownership) */}
