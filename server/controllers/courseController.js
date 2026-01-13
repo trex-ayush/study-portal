@@ -1003,6 +1003,98 @@ const deleteCourse = asyncHandler(async (req, res) => {
     res.status(200).json({ id: req.params.id, message: 'Course deleted successfully' });
 });
 
+// @desc    Search courses
+// @route   GET /api/courses/search
+// @access  Private
+const searchCourses = asyncHandler(async (req, res) => {
+    const { q, filter = 'all' } = req.query;
+
+    if (!q || !q.trim()) {
+        return res.status(200).json([]);
+    }
+
+    const searchQuery = q.trim();
+    const searchRegex = new RegExp(searchQuery, 'i');
+    let results = [];
+
+    // Search enrolled courses
+    if (filter === 'all' || filter === 'enrolled') {
+        const progresses = await Progress.find({ student: req.user.id })
+            .populate({
+                path: 'course',
+                select: 'title description status',
+                match: {
+                    status: 'Published',
+                    $or: [
+                        { title: searchRegex },
+                        { description: searchRegex }
+                    ]
+                }
+            });
+
+        const enrolledMatches = progresses
+            .filter(p => p.course) // Filter out null courses (didn't match)
+            .map(p => ({
+                _id: p.course._id,
+                title: p.course.title,
+                type: 'enrolled'
+            }));
+
+        results = [...results, ...enrolledMatches];
+    }
+
+    // Search created/teaching courses
+    if (filter === 'all' || filter === 'created') {
+        // Owned courses
+        const ownedCourses = await Course.find({
+            user: req.user.id,
+            $or: [
+                { title: searchRegex },
+                { description: searchRegex }
+            ]
+        }).select('title');
+
+        const ownedMatches = ownedCourses.map(c => ({
+            _id: c._id,
+            title: c.title,
+            type: 'created'
+        }));
+
+        // Teaching courses
+        const teacherAssignments = await CourseTeacher.find({ teacher: req.user.id });
+        const teacherCourseIds = teacherAssignments.map(t => t.course);
+
+        const teachingCourses = await Course.find({
+            _id: { $in: teacherCourseIds },
+            $or: [
+                { title: searchRegex },
+                { description: searchRegex }
+            ]
+        }).select('title');
+
+        const teachingMatches = teachingCourses.map(c => ({
+            _id: c._id,
+            title: c.title,
+            type: 'created'
+        }));
+
+        results = [...results, ...ownedMatches, ...teachingMatches];
+    }
+
+    // Remove duplicates (same course could appear in both enrolled and created)
+    const uniqueResults = [];
+    const seen = new Set();
+    for (const r of results) {
+        const key = `${r._id}-${r.type}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueResults.push(r);
+        }
+    }
+
+    res.status(200).json(uniqueResults.slice(0, 8));
+});
+
 module.exports = {
     createCourse,
     updateCourse,
@@ -1027,5 +1119,6 @@ module.exports = {
     getUserStats,
     removeStudent,
     getMyProgress,
-    getCourseAnalytics
+    getCourseAnalytics,
+    searchCourses
 };

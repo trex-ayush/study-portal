@@ -72,43 +72,13 @@ const Navbar = () => {
 
             setIsSearching(true);
             try {
-                const query = searchQuery.toLowerCase();
-                let results = [];
-
-                // Only fetch what we need based on filter
-                if (searchFilter === 'all' || searchFilter === 'enrolled') {
-                    const enrolledRes = await api.get('/courses/my/enrolled');
-                    const enrolledMatches = enrolledRes.data
-                        .filter(item =>
-                            item.course.title.toLowerCase().includes(query) ||
-                            item.course.description?.toLowerCase().includes(query)
-                        )
-                        .map(item => ({
-                            _id: item.course._id,
-                            title: item.course.title,
-                            type: 'enrolled'
-                        }));
-                    results = [...results, ...enrolledMatches];
-                }
-
-                if (searchFilter === 'all' || searchFilter === 'created') {
-                    const createdRes = await api.get('/courses/my/created');
-                    const createdMatches = createdRes.data
-                        .filter(course =>
-                            course.title.toLowerCase().includes(query) ||
-                            course.description?.toLowerCase().includes(query)
-                        )
-                        .map(course => ({
-                            _id: course._id,
-                            title: course.title,
-                            type: 'created'
-                        }));
-                    results = [...results, ...createdMatches];
-                }
-
-                setSearchResults(results.slice(0, 8)); // Limit to 8 results
+                const res = await api.get('/courses/search', {
+                    params: { q: searchQuery, filter: searchFilter }
+                });
+                setSearchResults(res.data);
             } catch (error) {
                 console.error('Search error:', error);
+                setSearchResults([]);
             } finally {
                 setIsSearching(false);
             }

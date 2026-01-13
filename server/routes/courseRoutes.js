@@ -24,7 +24,8 @@ const {
     getUserStats,
     removeStudent,
     getMyProgress,
-    getCourseAnalytics
+    getCourseAnalytics,
+    searchCourses
 } = require('../controllers/courseController');
 const {
     addTeacher,
@@ -47,6 +48,7 @@ const { createCourseLimiter } = require('../middleware/rateLimiter');
 
 // Static routes first (no :id params)
 router.get('/', protect, getCourses);
+router.get('/search', protect, searchCourses);
 router.get('/my/enrolled', protect, getEnrolledCourses);
 router.get('/my/created', protect, getCreatedCourses);
 router.get('/my/stats', protect, getUserStats);
