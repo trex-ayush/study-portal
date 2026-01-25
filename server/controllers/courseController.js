@@ -1115,6 +1115,112 @@ const searchCourses = asyncHandler(async (req, res) => {
     res.status(200).json(uniqueResults.slice(0, 8));
 });
 
+// @desc    Get detailed progress of a specific student for a course (section/lecture breakdown)
+// @route   GET /api/courses/:id/progress/:studentId
+// @access  Private (Admin or Course Owner/Teacher with manage_students)
+const getStudentProgressDetail = asyncHandler(async (req, res) => {
+    const { id, studentId } = req.params;
+
+    // Get the course with sections and populated lectures
+    const course = await Course.findById(id).populate({
+        path: 'sections.lectures',
+        select: 'title number duration'
+    });
+
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+
+    // Get the student info
+    const student = await User.findById(studentId).select('name email');
+    if (!student) {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Check if student is enrolled
+    const progress = await Progress.findOne({ course: id, student: studentId });
+    if (!progress) {
+        res.status(404);
+        throw new Error('Student is not enrolled in this course');
+    }
+
+    // Create a map of lecture progress for quick lookup
+    const lectureProgressMap = new Map();
+    progress.completedLectures.forEach(lp => {
+        lectureProgressMap.set(lp.lecture.toString(), {
+            status: lp.status,
+            completedAt: lp.completedAt,
+            notes: lp.notes
+        });
+    });
+
+    // Build the structured response
+    let totalLectures = 0;
+    let completedLectures = 0;
+    const completedStatus = course.completedStatus || 'Completed';
+
+    const sectionsProgress = course.sections.map((section, sectionIndex) => {
+        const lecturesProgress = section.lectures.map((lecture, lectureIndex) => {
+            totalLectures++;
+            const lectureProgress = lectureProgressMap.get(lecture._id.toString());
+            const status = lectureProgress ? lectureProgress.status : 'Not Started';
+
+            if (status === completedStatus) {
+                completedLectures++;
+            }
+
+            return {
+                _id: lecture._id,
+                title: lecture.title,
+                number: lecture.number || lectureIndex + 1,
+                duration: lecture.duration,
+                status: status,
+                statusDate: lectureProgress ? lectureProgress.completedAt : null,
+                notes: lectureProgress ? lectureProgress.notes : ''
+            };
+        });
+
+        // Calculate section progress
+        const sectionCompleted = lecturesProgress.filter(l => l.status === completedStatus).length;
+        const sectionTotal = lecturesProgress.length;
+        const sectionPercent = sectionTotal > 0 ? Math.round((sectionCompleted / sectionTotal) * 100) : 0;
+
+        return {
+            _id: section._id,
+            title: section.title,
+            sectionNumber: sectionIndex + 1,
+            lectures: lecturesProgress,
+            completedCount: sectionCompleted,
+            totalCount: sectionTotal,
+            progressPercent: sectionPercent
+        };
+    });
+
+    const overallPercent = totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
+
+    res.status(200).json({
+        student: {
+            _id: student._id,
+            name: student.name,
+            email: student.email
+        },
+        course: {
+            _id: course._id,
+            title: course.title,
+            lectureStatuses: course.lectureStatuses
+        },
+        progress: {
+            completedLectures,
+            totalLectures,
+            progressPercent: overallPercent
+        },
+        sections: sectionsProgress,
+        enrolledAt: progress.createdAt
+    });
+});
+
 module.exports = {
     createCourse,
     updateCourse,
@@ -1140,5 +1246,6 @@ module.exports = {
     removeStudent,
     getMyProgress,
     getCourseAnalytics,
-    searchCourses
+    searchCourses,
+    getStudentProgressDetail
 };
