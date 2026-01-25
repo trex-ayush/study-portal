@@ -11,7 +11,6 @@ import CourseManage from './pages/CourseManage';
 import CourseView from './pages/CourseView';
 import StudentDetail from './pages/StudentDetail';
 import StudentCourseDetails from './pages/StudentCourseDetails';
-import AdminLectureView from './pages/AdminLectureView';
 import Profile from './pages/Profile';
 import CourseSettings from './pages/CourseSettings';
 import GlobalActivity from './pages/GlobalActivity';
@@ -94,10 +93,9 @@ function App() {
                 {/* Course owner routes (admin OR course owner - backend verifies ownership) */}
                 <Route path="/admin/course/:id" element={<CourseOwnerRoute><CourseManage /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:id/settings" element={<CourseOwnerRoute><CourseSettings /></CourseOwnerRoute>} />
-                                <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
+                <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/student/:studentId/progress" element={<CourseOwnerRoute><StudentProgressDetail /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:courseId/lecture/:lectureId" element={<CourseOwnerRoute><AdminLectureView /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/quizzes" element={<CourseOwnerRoute><QuizManage /></CourseOwnerRoute>} />
                 <Route path="/admin/course/:courseId/quiz/:quizId/analytics" element={<CourseOwnerRoute><QuizAnalytics /></CourseOwnerRoute>} />
 

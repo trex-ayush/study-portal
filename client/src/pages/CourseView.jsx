@@ -5,6 +5,7 @@ import AuthContext from '../context/AuthContext';
 import { FaPlayCircle, FaCheckCircle, FaRegCircle, FaChevronDown, FaChevronUp, FaArrowLeft, FaClock, FaBars, FaTimes, FaStepBackward, FaStepForward, FaStickyNote, FaSave } from 'react-icons/fa';
 import StatusSelector from '../components/StatusSelector';
 import LectureSidebarItem from '../components/LectureSidebarItem';
+import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 
 const CourseView = () => {
@@ -22,7 +23,7 @@ const CourseView = () => {
     const [notes, setNotes] = useState('');
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const [itemsPerPage, setItemsPerPage] = useState(6);
 
     // State to toggle section accordion
     const [expandedSections, setExpandedSections] = useState({});
@@ -394,11 +395,10 @@ const CourseView = () => {
 
                                         {/* Bordered Container for Section with Lectures */}
                                         <div
-                                            className={`w-12 border-2 rounded-lg p-1 flex flex-col items-center gap-1 ${
-                                                isEvenSection
+                                            className={`w-12 border-2 rounded-lg p-1 flex flex-col items-center gap-1 ${isEvenSection
                                                     ? 'border-slate-900 dark:border-white'
                                                     : 'border-slate-300 dark:border-slate-700'
-                                            }`}
+                                                }`}
                                             title={section.title}
                                         >
                                             {/* Lecture Numbers inside the bordered box */}
@@ -412,13 +412,12 @@ const CourseView = () => {
                                                     <button
                                                         key={lec._id}
                                                         onClick={() => handleSelectLecture(lec)}
-                                                        className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-bold transition-all ${
-                                                            isSelected
+                                                        className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-bold transition-all ${isSelected
                                                                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
                                                                 : isCompleted
-                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
-                                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                                                        }`}
+                                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                                            }`}
                                                         title={`${lec.title} (${status})`}
                                                     >
                                                         {lec.number}
@@ -638,27 +637,18 @@ const CourseView = () => {
                                                 ))}
 
                                                 {/* Pagination */}
-                                                {Math.ceil(comments.length / itemsPerPage) > 1 && (
-                                                    <div className="flex justify-center items-center gap-4 pt-2">
-                                                        <button
-                                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                            disabled={currentPage === 1}
-                                                            className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors px-3 py-1.5"
-                                                        >
-                                                            ← Prev
-                                                        </button>
-                                                        <span className="text-xs text-slate-400 font-medium">
-                                                            {currentPage} / {Math.ceil(comments.length / itemsPerPage)}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(comments.length / itemsPerPage)))}
-                                                            disabled={currentPage === Math.ceil(comments.length / itemsPerPage)}
-                                                            className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors px-3 py-1.5"
-                                                        >
-                                                            Next →
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <Pagination
+                                                    currentPage={currentPage}
+                                                    totalPages={Math.ceil(comments.length / itemsPerPage)}
+                                                    totalItems={comments.length}
+                                                    itemsPerPage={itemsPerPage}
+                                                    onPageChange={(newPage) => setCurrentPage(newPage)}
+                                                    onLimitChange={(newLimit) => {
+                                                        setItemsPerPage(newLimit);
+                                                        setCurrentPage(1);
+                                                    }}
+                                                    compact={true}
+                                                />
                                             </>
                                         ) : (
                                             <div className="py-8 text-center">
