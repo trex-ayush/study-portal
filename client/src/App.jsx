@@ -19,6 +19,7 @@ import QuizManage from './pages/QuizManage';
 import QuizTake from './pages/QuizTake';
 import QuizAnalytics from './pages/QuizAnalytics';
 import StudentProgressDetail from './pages/StudentProgressDetail';
+import NotFound from './pages/NotFound';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useContext(AuthContext);
@@ -104,6 +105,9 @@ function App() {
                 <Route path="/course/:id" element={<ProtectedRoute><StudentCourseDetails /></ProtectedRoute>} />
                 <Route path="/course/:id/lecture/:lectureId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
                 <Route path="/course/:courseId/quiz/:quizId" element={<ProtectedRoute><QuizTake /></ProtectedRoute>} />
+
+                {/* 404 Not Found - Catch all undefined routes */}
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
             <Footer />
