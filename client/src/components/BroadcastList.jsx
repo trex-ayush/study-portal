@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { FaBullhorn, FaPlus, FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaSearch, FaTimes } from 'react-icons/fa';
 import Modal from './Modal';
+import Pagination from './Pagination';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 
@@ -139,11 +140,10 @@ const BroadcastList = ({
                     {isOwner && onToggleStudentBroadcasts && (
                         <button
                             onClick={onToggleStudentBroadcasts}
-                            className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md font-medium border transition-all ${
-                                allowStudentBroadcasts
+                            className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md font-medium border transition-all ${allowStudentBroadcasts
                                     ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400'
                                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
-                            }`}
+                                }`}
                             title={allowStudentBroadcasts ? 'Students can post' : 'Only you can post'}
                         >
                             {allowStudentBroadcasts ? <FaToggleOn size={12} /> : <FaToggleOff size={12} />}
@@ -209,9 +209,8 @@ const BroadcastList = ({
                             {filteredBroadcasts.map((broadcast) => (
                                 <div
                                     key={broadcast._id}
-                                    className={`group bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 hover:border-gray-300 dark:hover:border-slate-700 transition-all ${
-                                        broadcast.isActive === false ? 'opacity-50' : ''
-                                    }`}
+                                    className={`group bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 hover:border-gray-300 dark:hover:border-slate-700 transition-all ${broadcast.isActive === false ? 'opacity-50' : ''
+                                        }`}
                                 >
                                     {/* Top row: Title + Priority + Actions */}
                                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -287,38 +286,16 @@ const BroadcastList = ({
                     )}
 
                     {/* Pagination - compact (only show if no filters applied) */}
-                    {pagination.pages > 1 && !hasActiveFilters && (
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
-                            <span className="text-xs text-slate-400 dark:text-slate-500">
-                                {pagination.total} total
-                            </span>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => onPageChange(currentPage - 1)}
-                                    disabled={currentPage <= 1}
-                                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
-                                        currentPage <= 1
-                                            ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    Prev
-                                </button>
-                                <span className="px-2 text-xs text-slate-400 dark:text-slate-500">
-                                    {currentPage}/{pagination.pages}
-                                </span>
-                                <button
-                                    onClick={() => onPageChange(currentPage + 1)}
-                                    disabled={currentPage >= pagination.pages}
-                                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
-                                        currentPage >= pagination.pages
-                                            ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    Next
-                                </button>
-                            </div>
+                    {!hasActiveFilters && (
+                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={pagination.pages}
+                                totalItems={pagination.total}
+                                itemsPerPage={pagination.limit || 5}
+                                onPageChange={(newPage) => onPageChange(newPage)}
+                                showLimitSelector={false}
+                            />
                         </div>
                     )}
 

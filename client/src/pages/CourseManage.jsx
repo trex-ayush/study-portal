@@ -1,10 +1,11 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar, FaClipboardList, FaSearch, FaUserPlus, FaChevronLeft, FaChevronRight, FaHistory } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar, FaClipboardList, FaSearch, FaUserPlus, FaHistory } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import BroadcastList from '../components/BroadcastList';
 import TeacherManagement from '../components/TeacherManagement';
+import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 import AuthContext from '../context/AuthContext';
 
@@ -41,7 +42,8 @@ const CourseManage = () => {
     const [debouncedStudentKeyword, setDebouncedStudentKeyword] = useState('');
     const [enrollEmail, setEnrollEmail] = useState('');
     const [isEnrolling, setIsEnrolling] = useState(false);
-    const studentLimit = 10;
+    const [studentLimit, setStudentLimit] = useState(15);
+    const [studentTotal, setStudentTotal] = useState(0);
 
     // Broadcast State
     const [broadcasts, setBroadcasts] = useState([]);
@@ -110,6 +112,7 @@ const CourseManage = () => {
             const res = await api.get(`/courses/${id}/progresses?page=${page}&limit=${studentLimit}&keyword=${keyword}`);
             setEnrolledStudents(res.data.progresses || res.data);
             setStudentTotalPages(res.data.pages || 1);
+            setStudentTotal(res.data.total || 0);
             setStudentsLoaded(true);
         } catch (err) {
             console.error("Failed to fetch students", err);
@@ -125,12 +128,12 @@ const CourseManage = () => {
         return () => clearTimeout(timer);
     }, [studentKeyword]);
 
-    // Fetch students when page or search changes
+    // Fetch students when page, limit or search changes
     useEffect(() => {
         if (activeTab === 'students') {
             fetchStudents(studentPage, debouncedStudentKeyword);
         }
-    }, [studentPage, debouncedStudentKeyword, activeTab]);
+    }, [studentPage, studentLimit, debouncedStudentKeyword, activeTab]);
 
     // Fetch broadcasts (lazy load)
     const fetchBroadcasts = async (page = 1) => {
@@ -629,25 +632,17 @@ const CourseManage = () => {
                     </div>
 
                     {/* Pagination */}
-                    {studentTotalPages > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                            <button
-                                onClick={() => setStudentPage(p => Math.max(1, p - 1))}
-                                disabled={studentPage === 1}
-                                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <FaChevronLeft size={12} />
-                            </button>
-                            <span className="text-xs text-slate-500 font-medium">Page {studentPage} of {studentTotalPages}</span>
-                            <button
-                                onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
-                                disabled={studentPage === studentTotalPages}
-                                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <FaChevronRight size={12} />
-                            </button>
-                        </div>
-                    )}
+                    <Pagination
+                        currentPage={studentPage}
+                        totalPages={studentTotalPages}
+                        totalItems={studentTotal}
+                        itemsPerPage={studentLimit}
+                        onPageChange={(newPage) => setStudentPage(newPage)}
+                        onLimitChange={(newLimit) => {
+                            setStudentLimit(newLimit);
+                            setStudentPage(1);
+                        }}
+                    />
                 </div>
             </div>
 
@@ -770,11 +765,10 @@ const CourseManage = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                        activeTab === tab.id
-                                            ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
-                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                                    }`}
+                                    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                                        ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
+                                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
                                 >
                                     <Icon className="shrink-0 text-[12px] sm:text-sm" />
                                     {tab.label}
@@ -827,12 +821,12 @@ const CourseManage = () => {
                                                         </span>
                                                     )}
                                                     {!userPermissions.permissions.manage_content &&
-                                                     !userPermissions.permissions.manage_students &&
-                                                     !userPermissions.permissions.manage_teachers && (
-                                                        <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium">
-                                                            View Only
-                                                        </span>
-                                                    )}
+                                                        !userPermissions.permissions.manage_students &&
+                                                        !userPermissions.permissions.manage_teachers && (
+                                                            <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium">
+                                                                View Only
+                                                            </span>
+                                                        )}
                                                 </>
                                             )}
                                         </div>

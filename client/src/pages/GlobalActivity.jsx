@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { FaHistory, FaCheckCircle, FaPlayCircle, FaBook, FaUser, FaClock, FaStickyNote, FaUserPlus, FaComment } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import Pagination from '../components/Pagination';
 
 const GlobalActivity = () => {
     const navigate = useNavigate();
@@ -10,6 +11,8 @@ const GlobalActivity = () => {
     const [error, setError] = useState(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [limit, setLimit] = useState(15);
 
     // Filters State
     const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +38,7 @@ const GlobalActivity = () => {
             try {
                 const params = {
                     page,
-                    limit: 15,
+                    limit,
                     search: debouncedSearch,
                     action: actionFilter === 'All' ? '' : actionFilter,
                     user: debouncedUser
@@ -43,6 +46,7 @@ const GlobalActivity = () => {
                 const res = await api.get('/activities', { params });
                 setActivities(res.data.activities);
                 setTotalPages(res.data.pages);
+                setTotal(res.data.total || 0);
             } catch (error) {
                 console.error("Failed to fetch activities", error);
                 setError(error.response?.data?.message || error.message || "Failed to load logs");
@@ -52,7 +56,7 @@ const GlobalActivity = () => {
         };
 
         fetchActivities();
-    }, [page, debouncedSearch, actionFilter, debouncedUser]);
+    }, [page, limit, debouncedSearch, actionFilter, debouncedUser]);
 
     const handleReset = () => {
         setSearchTerm('');
@@ -234,27 +238,17 @@ const GlobalActivity = () => {
                         </div>
 
                         {/* Pagination */}
-                        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-950/50">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                                Page {page} of {totalPages}
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                    className="px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page === totalPages}
-                                    className="px-3 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        </div>
+                        <Pagination
+                            currentPage={page}
+                            totalPages={totalPages}
+                            totalItems={total}
+                            itemsPerPage={limit}
+                            onPageChange={(newPage) => setPage(newPage)}
+                            onLimitChange={(newLimit) => {
+                                setLimit(newLimit);
+                                setPage(1);
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed">

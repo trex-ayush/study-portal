@@ -12,10 +12,9 @@ import {
     FaUserPlus,
     FaComment,
     FaEnvelope,
-    FaUser,
-    FaChevronLeft,
-    FaChevronRight
+    FaUser
 } from 'react-icons/fa';
+import Pagination from '../components/Pagination';
 
 const StudentDetail = () => {
     const { courseId, studentId } = useParams();
@@ -26,12 +25,13 @@ const StudentDetail = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
+    const [limit, setLimit] = useState(15);
 
     useEffect(() => {
         const fetchActivity = async () => {
             setLoading(true);
             try {
-                const res = await api.get(`/courses/${courseId}/activity/${studentId}?page=${page}&limit=15`);
+                const res = await api.get(`/courses/${courseId}/activity/${studentId}?page=${page}&limit=${limit}`);
                 setActivities(res.data.activities || []);
                 setStudent(res.data.student || null);
                 setTotalPages(res.data.pages || 1);
@@ -43,7 +43,7 @@ const StudentDetail = () => {
             }
         };
         fetchActivity();
-    }, [courseId, studentId, page]);
+    }, [courseId, studentId, page, limit]);
 
     const getActionIcon = (action) => {
         switch (action) {
@@ -204,29 +204,17 @@ const StudentDetail = () => {
                         </div>
 
                         {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-950/50">
-                                <span className="text-xs text-slate-500 dark:text-slate-400">
-                                    Page {page} of {totalPages}
-                                </span>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                                        disabled={page === 1}
-                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
-                                    >
-                                        <FaChevronLeft size={10} /> Previous
-                                    </button>
-                                    <button
-                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                        disabled={page === totalPages}
-                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
-                                    >
-                                        Next <FaChevronRight size={10} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <Pagination
+                            currentPage={page}
+                            totalPages={totalPages}
+                            totalItems={total}
+                            itemsPerPage={limit}
+                            onPageChange={(newPage) => setPage(newPage)}
+                            onLimitChange={(newLimit) => {
+                                setLimit(newLimit);
+                                setPage(1);
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed">

@@ -142,11 +142,10 @@ const StudentDashboard = () => {
                     <div className="flex gap-1">
                         <button
                             onClick={() => setActiveTab('enrolled')}
-                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${
-                                activeTab === 'enrolled'
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'enrolled'
                                     ? 'border-slate-900 text-slate-900 dark:text-white dark:border-white'
                                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                            }`}
+                                }`}
                         >
                             <FaGraduationCap className="text-sm" />
                             <span>My Learning</span>
@@ -158,11 +157,10 @@ const StudentDashboard = () => {
                         </button>
                         <button
                             onClick={() => setActiveTab('created')}
-                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${
-                                activeTab === 'created'
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'created'
                                     ? 'border-slate-900 text-slate-900 dark:text-white dark:border-white'
                                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                            }`}
+                                }`}
                         >
                             <FaChalkboardTeacher className="text-sm" />
                             <span>My Courses</span>
@@ -252,9 +250,8 @@ const StudentDashboard = () => {
 
                                                 <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                                                     <div
-                                                        className={`h-1.5 rounded-full transition-all duration-500 ${
-                                                            percent === 100 ? 'bg-green-500' : 'bg-blue-500'
-                                                        }`}
+                                                        className={`h-1.5 rounded-full transition-all duration-500 ${percent === 100 ? 'bg-green-500' : 'bg-blue-500'
+                                                            }`}
                                                         style={{ width: `${percent}%` }}
                                                     />
                                                 </div>
@@ -313,10 +310,9 @@ const StudentDashboard = () => {
 
                                                 {/* Status Badge */}
                                                 <div className="flex flex-col items-end gap-2">
-                                                    <span className={`text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                                                        course.status === 'Published' ? 'bg-white/25' :
-                                                        course.status === 'Archived' ? 'bg-red-500/50' : 'bg-yellow-500/50'
-                                                    }`}>
+                                                    <span className={`text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${course.status === 'Published' ? 'bg-white/25' :
+                                                            course.status === 'Archived' ? 'bg-red-500/50' : 'bg-yellow-500/50'
+                                                        }`}>
                                                         {course.status === 'Published' ? (
                                                             <span className="flex items-center gap-1">
                                                                 <FaEye className="text-[8px]" /> Live
@@ -363,7 +359,7 @@ const StudentDashboard = () => {
                                                         <FaCog className="text-xs" /> Manage
                                                     </Link>
                                                     <Link
-                                                        to={`/admin/course/${course._id}/students`}
+                                                        to={`/admin/course/${course._id}?tab=students`}
                                                         className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium py-2.5 px-3 rounded-lg text-sm flex items-center justify-center transition-colors"
                                                         title="View Students"
                                                     >
