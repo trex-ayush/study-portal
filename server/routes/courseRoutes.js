@@ -25,7 +25,8 @@ const {
     removeStudent,
     getMyProgress,
     getCourseAnalytics,
-    searchCourses
+    searchCourses,
+    getStudentProgressDetail
 } = require('../controllers/courseController');
 const {
     addTeacher,
@@ -80,6 +81,7 @@ router.post('/:id/sections/:sectionId/lectures', protect, verifyCourseContentPer
 // Student management routes
 router.post('/:id/enroll', protect, verifyStudentManagementPermission, enrollStudent);
 router.get('/:id/activity/:studentId', protect, verifyStudentManagementPermission, getStudentActivity);
+router.get('/:id/progress/:studentId', protect, verifyStudentManagementPermission, getStudentProgressDetail);
 router.get('/:id/progresses', protect, verifyStudentManagementPermission, getCourseProgresses);
 router.delete('/:id/enroll/:studentId', protect, verifyStudentManagementPermission, removeStudent);
 

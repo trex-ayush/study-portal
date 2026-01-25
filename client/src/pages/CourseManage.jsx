@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar, FaClipboardList } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaChevronDown, FaBook, FaCog, FaUsers, FaBullhorn, FaUserTie, FaTimes, FaSignOutAlt, FaChartBar, FaClipboardList, FaSearch, FaUserPlus, FaChevronLeft, FaChevronRight, FaHistory } from 'react-icons/fa';
 import Modal from '../components/Modal';
 import BroadcastList from '../components/BroadcastList';
 import TeacherManagement from '../components/TeacherManagement';
@@ -35,6 +35,13 @@ const CourseManage = () => {
     // Students State
     const [enrolledStudents, setEnrolledStudents] = useState([]);
     const [studentsLoaded, setStudentsLoaded] = useState(false);
+    const [studentPage, setStudentPage] = useState(1);
+    const [studentTotalPages, setStudentTotalPages] = useState(1);
+    const [studentKeyword, setStudentKeyword] = useState('');
+    const [debouncedStudentKeyword, setDebouncedStudentKeyword] = useState('');
+    const [enrollEmail, setEnrollEmail] = useState('');
+    const [isEnrolling, setIsEnrolling] = useState(false);
+    const studentLimit = 10;
 
     // Broadcast State
     const [broadcasts, setBroadcasts] = useState([]);
@@ -97,17 +104,33 @@ const CourseManage = () => {
         }
     };
 
-    // Fetch students (lazy load)
-    const fetchStudents = async () => {
-        if (studentsLoaded) return;
+    // Fetch students with pagination
+    const fetchStudents = async (page = 1, keyword = '') => {
         try {
-            const res = await api.get(`/courses/${id}/progresses`);
-            setEnrolledStudents(res.data);
+            const res = await api.get(`/courses/${id}/progresses?page=${page}&limit=${studentLimit}&keyword=${keyword}`);
+            setEnrolledStudents(res.data.progresses || res.data);
+            setStudentTotalPages(res.data.pages || 1);
             setStudentsLoaded(true);
         } catch (err) {
             console.error("Failed to fetch students", err);
         }
     };
+
+    // Debounce student search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedStudentKeyword(studentKeyword);
+            setStudentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [studentKeyword]);
+
+    // Fetch students when page or search changes
+    useEffect(() => {
+        if (activeTab === 'students') {
+            fetchStudents(studentPage, debouncedStudentKeyword);
+        }
+    }, [studentPage, debouncedStudentKeyword, activeTab]);
 
     // Fetch broadcasts (lazy load)
     const fetchBroadcasts = async (page = 1) => {
@@ -170,9 +193,6 @@ const CourseManage = () => {
 
     // Lazy load data based on active tab
     useEffect(() => {
-        if (activeTab === 'students' && !studentsLoaded) {
-            fetchStudents();
-        }
         if (activeTab === 'broadcasts') {
             if (!broadcastsLoaded) {
                 fetchBroadcasts();
@@ -183,7 +203,7 @@ const CourseManage = () => {
                 markBroadcastsAsRead();
             }
         }
-    }, [activeTab, studentsLoaded, broadcastsLoaded, unreadBroadcastCount]);
+    }, [activeTab, broadcastsLoaded, unreadBroadcastCount]);
 
     const handleSaveSection = async (e) => {
         e.preventDefault();
@@ -309,6 +329,38 @@ const CourseManage = () => {
         } catch (error) {
             if (!error.handled) {
                 toast.error(error.response?.data?.message || 'Error leaving course');
+            }
+        }
+    };
+
+    // Enroll student by email
+    const handleEnrollStudent = async (e) => {
+        e.preventDefault();
+        setIsEnrolling(true);
+        try {
+            await api.post(`/courses/${id}/enroll`, { email: enrollEmail });
+            setEnrollEmail('');
+            toast.success('Student enrolled successfully');
+            fetchStudents(studentPage, debouncedStudentKeyword);
+        } catch (error) {
+            if (!error.handled) {
+                toast.error(error.response?.data?.message || 'Error enrolling student');
+            }
+        } finally {
+            setIsEnrolling(false);
+        }
+    };
+
+    // Remove student from course
+    const handleRemoveStudent = async (studentId, studentName) => {
+        if (!window.confirm(`Are you sure you want to remove ${studentName} from this course? Progress will be lost.`)) return;
+        try {
+            await api.delete(`/courses/${id}/enroll/${studentId}`);
+            toast.success('Student removed from course');
+            fetchStudents(studentPage, debouncedStudentKeyword);
+        } catch (error) {
+            if (!error.handled) {
+                toast.error('Failed to remove student');
             }
         }
     };
@@ -486,121 +538,149 @@ const CourseManage = () => {
 
     // Render Students Tab Content
     const renderStudentsTab = () => (
-        <div className="space-y-4 sm:space-y-6">
-            {/* Header */}
-            <div className="flex items-start sm:items-end justify-between gap-3">
-                <div className="min-w-0">
-                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Enrolled Students</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">Manage students enrolled in this course</p>
-                </div>
-                <button
-                    onClick={() => navigate(`/admin/course/${id}/students`)}
-                    className="bg-slate-900 dark:bg-blue-600 text-white px-3 sm:px-4 h-8 sm:h-9 rounded-md text-[10px] sm:text-xs font-bold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
-                >
-                    Manage Students
-                </button>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
-                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Enrolled</p>
-                    <p className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mt-1 sm:mt-2">{enrolledStudents.length}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
-                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Active</p>
-                    <p className="text-xl sm:text-3xl font-bold text-green-600 dark:text-green-400 mt-1 sm:mt-2">
-                        {enrolledStudents.filter(s => {
-                            const lastActive = new Date(s.updatedAt);
-                            const today = new Date();
-                            return lastActive.toDateString() === today.toDateString();
-                        }).length}
-                    </p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-800 p-3 sm:p-6">
-                    <p className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Avg. Progress</p>
-                    <p className="text-xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1 sm:mt-2">
-                        {enrolledStudents.length > 0
-                            ? Math.round(enrolledStudents.reduce((acc, s) => {
-                                const total = course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 1;
-                                const completed = s.completedLectures?.length || 0;
-                                return acc + (completed / total) * 100;
-                            }, 0) / enrolledStudents.length)
-                            : 0}%
-                    </p>
-                </div>
-            </div>
-
-            {/* Students List */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden">
-                {enrolledStudents.length > 0 ? (
-                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                        {enrolledStudents.slice(0, 10).map((progress) => {
-                            const totalLectures = course.sections?.reduce((t, sec) => t + (sec.lectures?.length || 0), 0) || 0;
-                            const completedLectures = progress.completedLectures?.length || 0;
-                            const progressPercent = totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
-
-                            return (
-                                <div key={progress._id} className="px-3 sm:px-4 py-3 sm:py-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <div className="flex items-center gap-2 sm:gap-3">
-                                        {/* Avatar */}
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center shrink-0">
-                                            <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
-                                                {progress.student?.name?.charAt(0)?.toUpperCase() || '?'}
-                                            </span>
-                                        </div>
-
-                                        {/* Info & Progress */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">{progress.student?.name || 'Unknown'}</p>
-                                                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">{progress.student?.email || ''}</p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
-                                                        {progressPercent}%
-                                                    </p>
-                                                    <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500">
-                                                        {completedLectures}/{totalLectures}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {/* Progress Bar */}
-                                            <div className="mt-2 w-full h-1.5 sm:h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all ${
-                                                        progressPercent === 100 ? 'bg-green-500' :
-                                                        progressPercent >= 50 ? 'bg-blue-500' :
-                                                        progressPercent > 0 ? 'bg-amber-500' : 'bg-gray-300'
-                                                    }`}
-                                                    style={{ width: `${progressPercent}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Student List */}
+            <div className="lg:col-span-2 space-y-4">
+                {/* Header */}
+                <div className="flex items-start sm:items-end justify-between gap-3">
+                    <div className="min-w-0">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Manage Students</h2>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">View and manage enrolled students</p>
                     </div>
-                ) : (
-                    <div className="text-center py-8 sm:py-12">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <FaUsers className="text-slate-300 dark:text-slate-600 text-sm sm:text-base" />
+                </div>
+
+                {/* Search */}
+                <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
+                    <div className="relative flex-1">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 transition-colors"
+                            value={studentKeyword}
+                            onChange={(e) => setStudentKeyword(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50 dark:bg-slate-950/50 border-b border-gray-100 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                                    <th className="px-4 sm:px-6 py-4">Student</th>
+                                    <th className="px-4 sm:px-6 py-4 hidden sm:table-cell">Enrolled Date</th>
+                                    <th className="px-4 sm:px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                {!studentsLoaded ? (
+                                    <tr><td colSpan="3" className="px-6 py-8 text-center text-xs text-slate-400">Loading...</td></tr>
+                                ) : enrolledStudents.length > 0 ? (
+                                    enrolledStudents.map((prog) => (
+                                        <tr key={prog._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                            <td className="px-4 sm:px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 uppercase">
+                                                        {prog.student?.name?.charAt(0) || '?'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-slate-900 dark:text-white">{prog.student?.name}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">{prog.student?.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 sm:px-6 py-4 text-xs text-slate-500 hidden sm:table-cell">
+                                                {new Date(prog.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-4 sm:px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        onClick={() => navigate(`/admin/course/${id}/student/${prog.student?._id}/progress`)}
+                                                        className="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                                                        title="View Progress"
+                                                    >
+                                                        <FaChartBar size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => navigate(`/admin/course/${id}/student/${prog.student?._id}`)}
+                                                        className="text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                                                        title="View Activity Log"
+                                                    >
+                                                        <FaHistory size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRemoveStudent(prog.student?._id, prog.student?.name)}
+                                                        className="text-red-400 hover:text-red-600 dark:hover:text-red-400 p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                                                        title="Remove Student"
+                                                    >
+                                                        <FaTrash size={14} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan="3" className="px-6 py-8 text-center text-xs text-slate-400">No students found.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {studentTotalPages > 1 && (
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                            <button
+                                onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                                disabled={studentPage === 1}
+                                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <FaChevronLeft size={12} />
+                            </button>
+                            <span className="text-xs text-slate-500 font-medium">Page {studentPage} of {studentTotalPages}</span>
+                            <button
+                                onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
+                                disabled={studentPage === studentTotalPages}
+                                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <FaChevronRight size={12} />
+                            </button>
                         </div>
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">No students enrolled yet</p>
-                    </div>
-                )}
-                {enrolledStudents.length > 10 && (
-                    <div className="px-3 sm:px-4 py-3 border-t border-gray-100 dark:border-slate-800 text-center">
+                    )}
+                </div>
+            </div>
+
+            {/* Right: Enroll Form */}
+            <div>
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 sticky top-40 transition-colors">
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <FaUserPlus className="text-slate-400 dark:text-slate-500" /> Enroll New Student
+                    </h2>
+                    <form onSubmit={handleEnrollStudent} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-1">Student Email</label>
+                            <input
+                                type="email"
+                                className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 transition-colors"
+                                value={enrollEmail}
+                                onChange={(e) => setEnrollEmail(e.target.value)}
+                                placeholder="student@example.com"
+                                required
+                            />
+                        </div>
                         <button
-                            onClick={() => navigate(`/admin/course/${id}/students`)}
-                            className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                            type="submit"
+                            disabled={isEnrolling}
+                            className="w-full bg-slate-900 dark:bg-blue-600 text-white py-2.5 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm"
                         >
-                            View all {enrolledStudents.length} students →
+                            {isEnrolling ? 'Enrolling...' : 'Invite User'}
                         </button>
-                    </div>
-                )}
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                            The user will be immediately enrolled in this course. They must already have an account on the platform.
+                        </p>
+                    </form>
+                </div>
             </div>
         </div>
     );
