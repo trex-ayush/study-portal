@@ -1,30 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { FaArrowLeft, FaUserGraduate, FaStickyNote, FaPlayCircle, FaCheckCircle, FaClock } from 'react-icons/fa';
+import {
+    FaArrowLeft,
+    FaUserGraduate,
+    FaHistory,
+    FaCheckCircle,
+    FaPlayCircle,
+    FaClock,
+    FaStickyNote,
+    FaUserPlus,
+    FaComment,
+    FaEnvelope,
+    FaUser,
+    FaChevronLeft,
+    FaChevronRight
+} from 'react-icons/fa';
 
 const StudentDetail = () => {
     const { courseId, studentId } = useParams();
     const navigate = useNavigate();
     const [activities, setActivities] = useState([]);
+    const [student, setStudent] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [studentName, setStudentName] = useState('Student');
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
 
     useEffect(() => {
         const fetchActivity = async () => {
+            setLoading(true);
             try {
-                // Fetch student name from one of the enrollment endpoints or just user detail if available.
-                // Re-using current endpoints: 
-                const actRes = await api.get(`/courses/${courseId}/activity/${studentId}`);
-                setActivities(actRes.data);
-
-                // Try to guess student name from first activity if populated or fetch specific endpoint if created.
-                // For now, let's just show "Student Activity".
-                if (actRes.data.length > 0 && actRes.data[0].student && actRes.data[0].student.name) {
-                    // Check if populate included student name. The controller didn't populate student.
-                    // I will trust the user just wants the logs for now.
-                }
-
+                const res = await api.get(`/courses/${courseId}/activity/${studentId}?page=${page}&limit=15`);
+                setActivities(res.data.activities || []);
+                setStudent(res.data.student || null);
+                setTotalPages(res.data.pages || 1);
+                setTotal(res.data.total || 0);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -32,68 +43,201 @@ const StudentDetail = () => {
             }
         };
         fetchActivity();
-    }, [courseId, studentId]);
+    }, [courseId, studentId, page]);
 
-    const getIcon = (action) => {
-        if (action === 'Comment') return <FaStickyNote className="text-purple-500" />;
-        if (action.includes('Note')) return <FaStickyNote className="text-yellow-500" />;
-        if (action.includes('Completed')) return <FaCheckCircle className="text-green-500" />;
-        if (action.includes('Started') || action.includes('Progress')) return <FaPlayCircle className="text-blue-500" />;
-        return <FaClock className="text-gray-400" />;
+    const getActionIcon = (action) => {
+        switch (action) {
+            case 'Completed': return <FaCheckCircle className="text-green-500" />;
+            case 'Started': return <FaPlayCircle className="text-blue-500" />;
+            case 'In Progress': return <FaClock className="text-amber-500" />;
+            case 'Note Updated': return <FaStickyNote className="text-purple-500" />;
+            case 'Enrolled': return <FaUserPlus className="text-indigo-500" />;
+            case 'Comment': return <FaComment className="text-slate-500" />;
+            case 'POST': return <FaCheckCircle className="text-green-600" />;
+            case 'PUT': return <FaCheckCircle className="text-amber-600" />;
+            case 'DELETE': return <FaCheckCircle className="text-red-600" />;
+            default: return <FaHistory className="text-slate-400" />;
+        }
+    };
+
+    const getActionBadgeClasses = (action) => {
+        switch (action) {
+            case 'Completed': return 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400';
+            case 'Started': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400';
+            case 'In Progress': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400';
+            case 'Enrolled': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400';
+            case 'Note Updated': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400';
+            case 'Comment': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
+            default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
+        }
+    };
+
+    if (loading && !student) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
+                <div className="text-slate-500 dark:text-slate-400 animate-pulse">Loading activity logs...</div>
+            </div>
+        );
     }
 
-    if (loading) return <div className="p-8 flex justify-center text-slate-500 dark:text-slate-400">Loading records...</div>;
-
     return (
-        <div className="container mx-auto p-6 bg-gray-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors">
-                <FaArrowLeft /> Back to Course
-            </button>
-
-            <div className="flex items-center gap-4 mb-8">
-                <div className="bg-white dark:bg-slate-900 p-3 rounded-full shadow-md text-slate-900 dark:text-white transition-colors">
-                    <FaUserGraduate size={32} />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Student Activity Log</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">Tracking learning progress and study notes</p>
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-gray-100 pb-12 transition-colors duration-300">
+            {/* Header */}
+            <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-16 z-10">
+                <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"
+                        >
+                            <FaArrowLeft />
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <FaHistory className="text-slate-400" />
+                                Student Activity Log
+                            </h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tracking learning progress and actions</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="relative border-l-2 border-gray-200 dark:border-slate-800 ml-6 space-y-8 transition-colors">
-                {activities.length > 0 ? (
-                    activities.map((act) => (
-                        <div key={act._id} className="ml-8 relative">
-                            {/* Timeline Dot */}
-                            <div className="absolute -left-[41px] bg-white dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 rounded-full p-2 transition-colors">
-                                {getIcon(act.action)}
+            <div className="container mx-auto px-4 py-8 max-w-5xl">
+                {/* Student Info Card */}
+                {student && (
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                                {student.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
-
-                            {/* Content Card */}
-                            <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-gray-100 dark:border-slate-800 hover:shadow-md transition-all">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className={`font-bold text-lg ${act.action.includes('Note') ? 'text-slate-900 dark:text-white' : 'text-blue-600 dark:text-blue-400'}`}>
-                                            {act.action}
-                                        </h3>
-                                        {act.lecture && (
-                                            <span className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs px-2 py-1 rounded font-medium mt-1 inline-block border border-blue-100 dark:border-blue-900/10">
-                                                Lecture {act.lecture.number}: {act.lecture.title}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-xs text-gray-400 dark:text-slate-500 font-mono">
-                                        {new Date(act.createdAt).toLocaleString()}
-                                    </span>
-                                </div>
-                                <p className="text-slate-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-950/50 p-3 rounded border border-gray-100 dark:border-slate-800 text-sm leading-relaxed transition-colors">
-                                    {act.details}
+                            <div className="flex-1">
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <FaUserGraduate className="text-slate-400 text-sm" />
+                                    {student.name}
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                    <FaEnvelope className="text-xs" />
+                                    {student.email}
                                 </p>
                             </div>
+                            <div className="text-right">
+                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                                    {total} activities
+                                </span>
+                            </div>
                         </div>
-                    ))
+                    </div>
+                )}
+
+                {/* Activity Table */}
+                {loading ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-12 text-center">
+                        <div className="text-slate-400 animate-pulse">Loading...</div>
+                    </div>
+                ) : activities.length > 0 ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 dark:bg-slate-950 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold border-b border-gray-100 dark:border-slate-800">
+                                    <tr>
+                                        <th className="px-6 py-4 w-[200px]">User</th>
+                                        <th className="px-6 py-4 w-[150px]">Action</th>
+                                        <th className="px-6 py-4 w-[200px]">Lecture</th>
+                                        <th className="px-6 py-4">Details</th>
+                                        <th className="px-6 py-4 w-[150px]">Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                    {activities.map((log) => {
+                                        const user = log.user || student;
+                                        return (
+                                            <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-6 py-4 align-top">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs uppercase shrink-0">
+                                                            {user?.name ? user.name.charAt(0) : <FaUser />}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[120px]">{user?.name || 'Unknown'}</div>
+                                                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate max-w-[120px]">{user?.email}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap align-top">
+                                                    <div className="flex items-center gap-2">
+                                                        {getActionIcon(log.action)}
+                                                        <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${getActionBadgeClasses(log.action)}`}>
+                                                            {log.action}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 align-top">
+                                                    {log.lecture ? (
+                                                        <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                                                            <span className="text-[10px] uppercase font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                                                #{log.lecture.number || '?'}
+                                                            </span>
+                                                            <span className="text-xs truncate max-w-[150px]" title={log.lecture.title}>
+                                                                {log.lecture.title}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400 italic">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 align-top">
+                                                    <div className="max-w-[250px] min-w-0">
+                                                        <div className="line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300 leading-relaxed" title={log.details || ''}>
+                                                            {log.details || 'No details'}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap align-top">
+                                                    {new Date(log.createdAt).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-950/50">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    Page {page} of {totalPages}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
+                                    >
+                                        <FaChevronLeft size={10} /> Previous
+                                    </button>
+                                    <button
+                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={page === totalPages}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-xs font-semibold disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
+                                    >
+                                        Next <FaChevronRight size={10} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 ) : (
-                    <div className="ml-8 text-gray-400 dark:text-slate-500 italic">No activity recorded for this student yet.</div>
+                    <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 border-dashed">
+                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FaHistory className="text-slate-300 dark:text-slate-600 text-2xl" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No activity yet</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            {student?.name || 'This student'}'s activity will appear here.
+                        </p>
+                    </div>
                 )}
             </div>
         </div>
