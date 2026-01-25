@@ -570,10 +570,42 @@ const getLectureComments = asyncHandler(async (req, res) => {
 // @access  Private (Admin or Course Owner)
 const getStudentActivity = asyncHandler(async (req, res) => {
     const { id, studentId } = req.params;
-    const activities = await Activity.find({ course: id, student: studentId })
+    const { page = 1, limit = 15 } = req.query;
+
+    // Fetch student details
+    const student = await User.findById(studentId).select('name email role');
+    if (!student) {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Build query - filter out personal notes (Note Updated action)
+    // Teachers should not see student's personal notes
+    const query = {
+        course: id,
+        user: studentId,
+        action: { $ne: 'Note Updated' } // Exclude personal notes
+    };
+
+    // Count total for pagination
+    const total = await Activity.countDocuments(query);
+    const pages = Math.ceil(total / parseInt(limit));
+
+    // Query using 'user' field (activities are logged with user, not student)
+    const activities = await Activity.find(query)
         .populate('lecture', 'title number')
-        .sort({ createdAt: -1 });
-    res.status(200).json(activities);
+        .populate('user', 'name email role')
+        .sort({ createdAt: -1 })
+        .skip((parseInt(page) - 1) * parseInt(limit))
+        .limit(parseInt(limit));
+
+    res.status(200).json({
+        student,
+        activities,
+        page: parseInt(page),
+        pages,
+        total
+    });
 });
 
 // @desc    Get all progresses for a course
