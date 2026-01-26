@@ -1,31 +1,44 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useContext } from 'react';
+import { useContext, lazy, Suspense } from 'react';
 import AuthContext, { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import StudentDashboard from './pages/StudentDashboard';
-import CourseManage from './pages/CourseManage';
-import CourseView from './pages/CourseView';
-import StudentDetail from './pages/StudentDetail';
-import StudentCourseDetails from './pages/StudentCourseDetails';
-import Profile from './pages/Profile';
-import CourseSettings from './pages/CourseSettings';
-import GlobalActivity from './pages/GlobalActivity';
-import CourseAnalytics from './pages/CourseAnalytics';
-import QuizManage from './pages/QuizManage';
-import QuizTake from './pages/QuizTake';
-import QuizAnalytics from './pages/QuizAnalytics';
-import StudentProgressDetail from './pages/StudentProgressDetail';
-import NotFound from './pages/NotFound';
+import { Toaster } from 'react-hot-toast';
+
+// Lazy load all pages for better performance (code splitting)
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
+const CourseManage = lazy(() => import('./pages/CourseManage'));
+const CourseView = lazy(() => import('./pages/CourseView'));
+const StudentDetail = lazy(() => import('./pages/StudentDetail'));
+const StudentCourseDetails = lazy(() => import('./pages/StudentCourseDetails'));
+const Profile = lazy(() => import('./pages/Profile'));
+const CourseSettings = lazy(() => import('./pages/CourseSettings'));
+const GlobalActivity = lazy(() => import('./pages/GlobalActivity'));
+const CourseAnalytics = lazy(() => import('./pages/CourseAnalytics'));
+const QuizManage = lazy(() => import('./pages/QuizManage'));
+const QuizTake = lazy(() => import('./pages/QuizTake'));
+const QuizAnalytics = lazy(() => import('./pages/QuizAnalytics'));
+const StudentProgressDetail = lazy(() => import('./pages/StudentProgressDetail'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+// Loading spinner component for Suspense fallback
+const PageLoader = () => (
+  <div className="flex h-screen items-center justify-center dark:bg-slate-950">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-3 border-slate-200 dark:border-slate-700 border-t-slate-600 dark:border-t-slate-400 rounded-full animate-spin"></div>
+      <p className="text-slate-500 dark:text-slate-400 font-medium">Loading...</p>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center dark:bg-slate-950"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+    return <PageLoader />;
   }
 
   if (!user) {
@@ -44,7 +57,7 @@ const CourseOwnerRoute = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center dark:bg-slate-950"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+    return <PageLoader />;
   }
 
   if (!user) {
@@ -54,8 +67,6 @@ const CourseOwnerRoute = ({ children }) => {
   // Backend will verify ownership, frontend just ensures user is logged in
   return children;
 };
-
-import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
@@ -84,31 +95,33 @@ function App() {
                   },
                 },
               }} />
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
 
-                {/* Admin-only routes */}
-                <Route path="/admin/activities" element={<ProtectedRoute adminOnly={true}><GlobalActivity /></ProtectedRoute>} />
+                  {/* Admin-only routes */}
+                  <Route path="/admin/activities" element={<ProtectedRoute adminOnly={true}><GlobalActivity /></ProtectedRoute>} />
 
-                {/* Course owner routes (admin OR course owner - backend verifies ownership) */}
-                <Route path="/admin/course/:id" element={<CourseOwnerRoute><CourseManage /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:id/settings" element={<CourseOwnerRoute><CourseSettings /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:courseId/student/:studentId/progress" element={<CourseOwnerRoute><StudentProgressDetail /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:courseId/quizzes" element={<CourseOwnerRoute><QuizManage /></CourseOwnerRoute>} />
-                <Route path="/admin/course/:courseId/quiz/:quizId/analytics" element={<CourseOwnerRoute><QuizAnalytics /></CourseOwnerRoute>} />
+                  {/* Course owner routes (admin OR course owner - backend verifies ownership) */}
+                  <Route path="/admin/course/:id" element={<CourseOwnerRoute><CourseManage /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:id/settings" element={<CourseOwnerRoute><CourseSettings /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:id/analytics" element={<CourseOwnerRoute><CourseAnalytics /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:courseId/student/:studentId" element={<CourseOwnerRoute><StudentDetail /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:courseId/student/:studentId/progress" element={<CourseOwnerRoute><StudentProgressDetail /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:courseId/quizzes" element={<CourseOwnerRoute><QuizManage /></CourseOwnerRoute>} />
+                  <Route path="/admin/course/:courseId/quiz/:quizId/analytics" element={<CourseOwnerRoute><QuizAnalytics /></CourseOwnerRoute>} />
 
-                <Route path="/" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
-                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/course/:id" element={<ProtectedRoute><StudentCourseDetails /></ProtectedRoute>} />
-                <Route path="/course/:id/lecture/:lectureId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
-                <Route path="/course/:courseId/quiz/:quizId" element={<ProtectedRoute><QuizTake /></ProtectedRoute>} />
+                  <Route path="/" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/course/:id" element={<ProtectedRoute><StudentCourseDetails /></ProtectedRoute>} />
+                  <Route path="/course/:id/lecture/:lectureId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
+                  <Route path="/course/:courseId/quiz/:quizId" element={<ProtectedRoute><QuizTake /></ProtectedRoute>} />
 
-                {/* 404 Not Found - Catch all undefined routes */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* 404 Not Found - Catch all undefined routes */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </div>
             <Footer />
           </div>
